@@ -1,7 +1,7 @@
 # ADR 0006: Data Scraping Policy
 
 ## Status
-Accepted
+Superseded by [ADR 0007](./0007-api-first-data-collection-strategy.md)
 
 ## Context
 As part of the "Minecraft 插件模組爬蟲" project, we aim to scrape data from various websites that provide Minecraft plugins and mods. However, some platforms explicitly prohibit data scraping in their Terms of Service (ToS) or End User License Agreement (EULA). To ensure compliance with legal and ethical guidelines, we need to decide whether to proceed with scraping these sites.
@@ -32,7 +32,7 @@ We will **not** scrape websites that explicitly prohibit data scraping in their 
 - Additional time and effort may be required to clarify the policies of sites with ambiguous terms.
 
 ## Related ADRs
-- None at this time.
+- [ADR 0007](./0007-api-first-data-collection-strategy.md)
 
 ## Date
 January 26, 2025
