@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 The project needs a frontend solution that can:
-- Display and search plugin/mod data efficiently
+- Display and search resource data efficiently
 - Provide a modern user experience
 - Be hosted as a static site
 - Handle client-side data processing
@@ -17,7 +17,6 @@ We will build the frontend using React:
 - React 18+
 - Build tool: Vite
 - Directory: `/web`
-- Deployment: Firebase Hosting
 
 ### Key Features
 - Client-side search and filtering
@@ -41,4 +40,4 @@ We will build the frontend using React:
 - [ADR 0005](./0005-github-actions-for-ci-cd.md)
 
 ## Date
-January 26, 2024
+01/26/2025

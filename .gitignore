@@ -1,16 +1,5 @@
-# Python
+scraper/config/api_config.yml
+venv
 __pycache__/
-*.py[cod]
-.venv/
-venv/
-pip-wheel-metadata/
-*.egg-info
-
-# Node
-node_modules/
-build/
-dist/
-
-# OS files
-.DS_Store
-
+*.log
+*.json
