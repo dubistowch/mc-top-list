@@ -71,6 +71,11 @@ class APIClient(ABC, Generic[T]):
                 trace_configs=[self.tracer.create_config()]
             )
     
+    async def close(self):
+        """關閉客戶端連接"""
+        if self.session and not self.session.closed:
+            await self.session.close()
+
     async def __aenter__(self):
         """Context manager 進入點"""
         await self._init_session()

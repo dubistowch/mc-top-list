@@ -27,7 +27,7 @@ class Source:
     url: str
     external_id: str
 
-@dataclass(frozen=True)
+@dataclass
 class Resource:
     """Minecraft 資源"""
     id: str
@@ -40,4 +40,16 @@ class Resource:
     stats: Statistics = field(default_factory=Statistics)
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
-    category: ResourceCategory = "all" 
+    category: ResourceCategory = "all"
+    
+    def to_dict(self) -> dict:
+        """轉換為符合 schema 的字典格式"""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "author": self.authors[0] if self.authors else "",  # 使用第一個作者
+            "downloads": self.stats.downloads,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat()
+        } 

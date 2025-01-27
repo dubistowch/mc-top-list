@@ -18,7 +18,7 @@ class ModrinthClient(APIClient[Dict]):
         super().__init__()
         if api_key:
             self.headers["Authorization"] = api_key
-    
+
     def _get_base_url(self) -> str:
         return BASE_URL
     
