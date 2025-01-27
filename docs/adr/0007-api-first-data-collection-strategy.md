@@ -7,18 +7,19 @@ Accepted
 After evaluating various Minecraft plugin/mod platforms, we found that several major platforms provide official APIs. Using official APIs not only ensures compliance with terms of service but also provides more reliable and stable data access methods.
 
 Currently confirmed platforms with API support:
-- CurseForge: Comprehensive API with rate limits
-- Modrinth: Well-documented REST API
 - Hangar: Official API for PaperMC resources
-- Builtbybit: Requires authorization
+- Modrinth: Well-documented REST API
 - Polymart: Limited API access
+- Builtbybit: Requires authorization
 
 ## Decision
 We will adopt an "API-First" data collection strategy:
 
 1. **API Integration Priority**:
+   - Hangar API (Primary)
    - Modrinth API (Primary)
-   - CurseForge API (Primary)
+   - Polymart API (Primary)
+   - Builtbybit API (Primary)
    - Other APIs (Secondary, based on availability)
 
 2. **Implementation Architecture**:

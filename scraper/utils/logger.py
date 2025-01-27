@@ -1,66 +1,48 @@
 """日誌工具模組"""
 
 import logging
-import sys
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
-from typing import Optional
+from datetime import datetime
 
-from pythonjsonlogger import jsonlogger
+from scraper.utils.paths import LOGS_DIR
 
-# 常量定義
-DEFAULT_NAME = "minecraft_scraper"
-MAX_BYTES = 10 * 1024 * 1024  # 10MB
-BACKUP_COUNT = 5
-LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(message)s"
-
-class AsyncLogger:
-    """異步日誌記錄器"""
+def setup_logger(name: str = "minecraft_scraper") -> logging.Logger:
+    """設定日誌記錄器
     
-    _instance: Optional[logging.Logger] = None
+    Args:
+        name: 日誌記錄器名稱
+        
+    Returns:
+        配置好的日誌記錄器
+    """
+    logger = logging.getLogger(name)
     
-    @classmethod
-    def get_logger(cls, name: str = DEFAULT_NAME) -> logging.Logger:
-        """獲取日誌記錄器實例"""
-        if cls._instance is None:
-            cls._instance = cls._setup_logger(name)
-        return cls._instance
-    
-    @classmethod
-    def _setup_logger(cls, name: str) -> logging.Logger:
-        """設置日誌記錄器"""
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.INFO)
-        
-        # 確保日誌目錄存在
-        log_dir = Path("logs")
-        log_dir.mkdir(exist_ok=True)
-        
-        # 添加處理器
-        logger.addHandler(cls._create_file_handler(log_dir / f"{name}.log"))
-        logger.addHandler(cls._create_console_handler())
-        
+    # 如果已經配置過，直接返回
+    if logger.handlers:
         return logger
+        
+    logger.setLevel(logging.DEBUG)
     
-    @staticmethod
-    def _create_file_handler(log_path: Path) -> RotatingFileHandler:
-        """創建文件處理器"""
-        handler = RotatingFileHandler(
-            log_path,
-            maxBytes=MAX_BYTES,
-            backupCount=BACKUP_COUNT,
-            encoding='utf-8'
-        )
-        handler.setFormatter(jsonlogger.JsonFormatter(LOG_FORMAT))
-        return handler
+    # 確保日誌目錄存在
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
     
-    @staticmethod
-    def _create_console_handler() -> logging.StreamHandler:
-        """創建控制台處理器"""
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter(LOG_FORMAT))
-        return handler
-
-def setup_logger(name: str = DEFAULT_NAME) -> logging.Logger:
-    """獲取日誌記錄器的便捷函數"""
-    return AsyncLogger.get_logger(name) 
+    # 檔案處理器
+    log_file = LOGS_DIR / f"{datetime.now().strftime('%Y%m%d')}.log"
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setLevel(logging.DEBUG)
+    
+    # 控制台處理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # 設定格式
+    formatter = logging.Formatter(
+        "%(asctime)s %(name)s %(levelname)s %(message)s"
+    )
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    # 添加處理器
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger 
