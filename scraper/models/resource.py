@@ -1,11 +1,21 @@
 """Resource model module."""
 
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Literal, Union
+from typing import List, Optional, Literal, Union, Dict, Any
 from datetime import datetime
 from enum import Enum
 
-ResourceType = Literal["mod", "plugin", "modpack", "resource_pack"]
+class ResourceType(str, Enum):
+    """Resource type enumeration."""
+    MOD = "mod"
+    PLUGIN = "plugin"
+    MODPACK = "modpack"
+    RESOURCE_PACK = "resource_pack"
+    DATAPACK = "datapack"
+    ADDON = "addon"
+
+# For backwards compatibility
+ResourceTypeLiteral = Literal["mod", "plugin", "modpack", "resource_pack", "datapack", "addon"]
 
 class ResourceCategory(str, Enum):
     """Resource category enumeration."""
@@ -62,16 +72,16 @@ class Resource:
     author: str
     downloads: int
     resource_type: str
-    platform: str
-    created_at: datetime
-    updated_at: datetime
-    versions: List[str]
-    categories: List[str]
-    website_url: str
+    platform: str = field(default="unknown")
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+    versions: List[str] = field(default_factory=list)
+    categories: List[str] = field(default_factory=list)
+    website_url: str = field(default="")
     source_url: Optional[str] = None
     license: Optional[str] = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """轉換為符合 schema 的字典格式"""
         return {
             "id": self.id,
@@ -81,5 +91,11 @@ class Resource:
             "downloads": self.downloads,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
-            "resource_type": self.resource_type
+            "resource_type": self.resource_type,
+            "platform": self.platform,
+            "versions": self.versions,
+            "categories": self.categories,
+            "website_url": self.website_url,
+            "source_url": self.source_url,
+            "license": self.license
         } 

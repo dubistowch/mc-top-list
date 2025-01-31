@@ -19,6 +19,7 @@ from scraper.models.platform import Platform
 from scraper.services.transformers.modrinth import ModrinthTransformer
 from scraper.services.transformers.hangar import HangarTransformer
 from scraper.services.storage.json_storage import JsonStorage
+from scraper.services.aggregator import ResourceAggregator
 
 # Initialize structured logging
 logger = structlog.get_logger(__name__)
@@ -54,10 +55,11 @@ class ScraperService:
         Args:
             storage_dir: Base directory for data storage
         """
+        self.base_dir = storage_dir or Path(__file__).parent.parent.parent
         self.client_factory = ClientFactory()
         self._register_clients()
         self._init_transformers()
-        self._init_storage(storage_dir or Path("data"))
+        self._init_storage()
         
     def _register_clients(self) -> None:
         """Register platform-specific API clients"""
@@ -71,19 +73,11 @@ class ScraperService:
             "hangar": HangarTransformer()
         }
         
-    def _init_storage(self, base_dir: Path) -> None:
-        """
-        Initialize storage service
-        
-        Args:
-            base_dir: Base directory for data storage
-        """
+    def _init_storage(self) -> None:
+        """Initialize storage service"""
         try:
-            raw_dir = base_dir / "raw"
-            processed_dir = base_dir / "processed"
-            
-            self.raw_storage = JsonStorage(raw_dir)
-            self.processed_storage = JsonStorage(processed_dir)
+            self.storage = JsonStorage(base_dir=self.base_dir)
+            self.aggregator = ResourceAggregator(storage=self.storage)
         except Exception as e:
             raise StorageError(f"Failed to initialize storage: {str(e)}")
         
@@ -152,6 +146,7 @@ class ScraperService:
             ScraperError: If the scraping process fails
         """
         timestamp = datetime.now()
+        timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
         raw_results: Dict[str, Dict] = {}
         processed_results: Dict[str, List[Resource]] = {}
         
@@ -161,6 +156,7 @@ class ScraperService:
         ]
         
         try:
+            # 抓取和處理資料
             for platform in platforms:
                 # Fetch and store raw data
                 raw_data = await self.fetch_resources(platform.name)
@@ -171,12 +167,30 @@ class ScraperService:
                 if resources:
                     processed_results[platform.name] = resources
             
-            # Save both raw and processed data
-            await self.raw_storage.save_raw_data(raw_results, timestamp)
-            await self.processed_storage.save_processed_data(processed_results, timestamp)
+            # 儲存原始和處理後的資料
+            await self.storage.save_raw_data(raw_results, timestamp)
+            await self.storage.save_processed_data(processed_results, timestamp)
             
-            logger.info("scraping_completed", platform_count=len(platforms))
+            # 執行資料聚合
+            aggregated_result = self.aggregator.aggregate(timestamp_str)
+            
+            # 輸出聚合結果
+            print("\n=== 聚合結果 ===")
+            print(f"總資源數: {aggregated_result['metadata']['total_resources']}")
+            print(f"平台: {aggregated_result['metadata']['platforms']}")
+            
+            print("\n資源統計:")
+            for res_type, categories in aggregated_result['resources'].items():
+                print(f"\n{res_type}:")
+                for category, resources in categories.items():
+                    print(f"  {category}: {len(resources)} 個資源")
+            
+            logger.info("scraping_completed", 
+                       platform_count=len(platforms),
+                       total_resources=aggregated_result['metadata']['total_resources'])
+            
             return processed_results
+            
         except (ResourceFetchError, ResourceProcessingError, StorageError) as e:
             raise
         except Exception as e:

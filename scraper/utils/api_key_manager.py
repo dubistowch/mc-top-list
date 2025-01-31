@@ -22,7 +22,8 @@ class APIKeyManager:
         
         # 如果沒有指定 .env 路徑，則嘗試在專案根目錄尋找
         if not env_path:
-            env_path = Path(__file__).parent.parent.parent / ".env"
+            project_root = Path.cwd()
+            env_path = project_root / ".env"
         
         # 載入 .env 檔案
         if env_path.exists():

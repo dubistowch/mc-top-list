@@ -4,7 +4,7 @@ JSON file storage implementation
 
 import json
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 from datetime import datetime
 from pathlib import Path
 
@@ -25,7 +25,10 @@ class JsonStorage(BaseStorage):
             timestamp: Data collection timestamp
         """
         try:
-            timestamp_dir = self._get_timestamp_dir(timestamp)
+            # Create timestamp directory
+            timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+            timestamp_dir = self.base_dir / "data" / "raw" / timestamp_str
+            timestamp_dir.mkdir(parents=True, exist_ok=True)
             
             for platform, platform_data in data.items():
                 file_path = timestamp_dir / f"{platform}_raw.json"
@@ -47,7 +50,10 @@ class JsonStorage(BaseStorage):
             timestamp: Data collection timestamp
         """
         try:
-            timestamp_dir = self._get_timestamp_dir(timestamp)
+            # Create timestamp directory
+            timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+            timestamp_dir = self.base_dir / "data" / "processed" / timestamp_str
+            timestamp_dir.mkdir(parents=True, exist_ok=True)
             
             for platform, platform_resources in resources.items():
                 file_path = timestamp_dir / f"{platform}_processed.json"
@@ -65,4 +71,58 @@ class JsonStorage(BaseStorage):
                     
         except Exception as e:
             logger.error("Failed to save processed data: %s", str(e))
-            raise 
+            raise
+    
+    def _parse_resource(self, data: Dict) -> Resource:
+        """
+        Parse resource data from JSON.
+        
+        Args:
+            data: Raw resource data
+            
+        Returns:
+            Resource object
+        """
+        # Convert datetime strings to datetime objects
+        if "created_at" in data:
+            data["created_at"] = datetime.fromisoformat(data["created_at"].replace("Z", "+00:00"))
+        if "updated_at" in data:
+            data["updated_at"] = datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00"))
+            
+        return Resource(**data)
+    
+    def load_processed_data(self, timestamp: str, platform: str) -> List[Resource]:
+        """
+        Load processed data for a platform.
+        
+        Args:
+            timestamp: Data timestamp
+            platform: Platform name
+            
+        Returns:
+            List of Resource objects
+        """
+        file_path = self.base_dir / "data" / "processed" / timestamp / f"{platform}_processed.json"
+        if not file_path.exists():
+            return []
+            
+        with open(file_path) as f:
+            data = json.load(f)
+            return [self._parse_resource(resource) for resource in data.get("resources", [])]
+    
+    def save_aggregated_data(self, timestamp: str, data: Dict) -> None:
+        """
+        Save aggregated data.
+        
+        Args:
+            timestamp: Data timestamp
+            data: Aggregated data to save
+        """
+        # Create directory if not exists
+        output_dir = self.base_dir / "data" / "aggregated" / timestamp
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save aggregated data
+        output_file = output_dir / "aggregated.json"
+        with open(output_file, "w") as f:
+            json.dump(data, f, indent=2, default=str) 

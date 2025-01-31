@@ -14,6 +14,8 @@ We will expand our resource model and collection strategy to explicitly support 
    - Mod: Client/Server modifications (from Modrinth)
    - Modpack: Collection of mods and configurations (from Modrinth)
    - Resource Pack: Visual and audio assets (from Modrinth)
+   - Datapack: Custom data and functionality using vanilla mechanics (from Modrinth)
+   - Addon: Server-side extensions with specific platform support (from Hangar)
 
 2. **Schema Updates**:
    - Added `resource_type` field to the resource model with enum values
@@ -25,8 +27,8 @@ We will expand our resource model and collection strategy to explicitly support 
    ```
    scraper/
    ├── platforms/           # Platform-specific implementations
-   │   ├── modrinth/       # Mods, modpacks, resource packs
-   │   └── hangar/         # Plugins
+   │   ├── modrinth/       # Mods, modpacks, resource packs, datapacks
+   │   └── hangar/         # Plugins, addons
    ├── core/               # Core scraping logic
    ├── contracts/          # Interface definitions
    ├── models/             # Type-specific model implementations
