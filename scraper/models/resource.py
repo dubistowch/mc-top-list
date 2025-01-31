@@ -37,38 +37,49 @@ class Source:
 
 @dataclass
 class Resource:
-    """Base resource model."""
+    """
+    Normalized resource model representing a Minecraft resource
+    
+    Attributes:
+        id: Unique identifier
+        name: Resource name
+        description: Resource description
+        author: Resource author
+        downloads: Download count
+        resource_type: Type of resource (mod, plugin, etc.)
+        platform: Source platform
+        created_at: Creation timestamp
+        updated_at: Last update timestamp
+        versions: List of supported game versions
+        categories: Resource categories/tags
+        website_url: Resource homepage URL
+        source_url: Source code URL
+        license: Resource license
+    """
     id: str
     name: str
-    type: ResourceType
-    version: VersionInfo
-    sources: List[Source]
-    description: str = ""
-    authors: List[str] = field(default_factory=list)
-    stats: Statistics = field(default_factory=Statistics)
-    created_at: Optional[Union[str, datetime]] = None
-    updated_at: Optional[Union[str, datetime]] = None
-    category: ResourceCategory = ResourceCategory.ALL
-    versions: List[VersionInfo] = field(default_factory=list)
-    popularity: float = 0.0  # 熱門度分數，由各平台自行計算
-    
+    description: str
+    author: str
+    downloads: int
+    resource_type: str
+    platform: str
+    created_at: datetime
+    updated_at: datetime
+    versions: List[str]
+    categories: List[str]
+    website_url: str
+    source_url: Optional[str] = None
+    license: Optional[str] = None
+
     def to_dict(self) -> dict:
         """轉換為符合 schema 的字典格式"""
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "author": self.authors[0] if self.authors else "",  # 使用第一個作者
-            "downloads": self.stats.downloads,
-            "created_at": (
-                self.created_at.isoformat() if isinstance(self.created_at, datetime)
-                else self.created_at if self.created_at
-                else datetime.now().isoformat()
-            ),
-            "updated_at": (
-                self.updated_at.isoformat() if isinstance(self.updated_at, datetime)
-                else self.updated_at if self.updated_at
-                else datetime.now().isoformat()
-            ),
-            "resource_type": self.type
+            "author": self.author,
+            "downloads": self.downloads,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "resource_type": self.resource_type
         } 

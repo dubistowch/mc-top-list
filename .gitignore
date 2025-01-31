@@ -5,3 +5,7 @@ __pycache__/
 *.json
 !scraper/data/schema/** 
 **/.DS_Store
+# Environment variables
+.env
+.env.*
+!.env.example

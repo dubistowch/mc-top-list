@@ -1,0 +1,24 @@
+# Scraper Configuration
+
+platforms:
+  modrinth:
+    api_url: "https://api.modrinth.com/v2"
+    batch_size: 100
+    resource_types:
+      - mod
+      - modpack
+      - resource-pack
+  
+  hangar:
+    api_url: "https://hangar.papermc.io/api/v1"
+    batch_size: 50
+    resource_types:
+      - plugin
+
+storage:
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
+  
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s" 
