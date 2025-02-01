@@ -8,7 +8,7 @@
 
 {% block content %}
 <h1 class="mb-4">Minecraft 資源週報</h1>
-<p class="text-muted">資料更新時間：{{ data.timestamp }}</p>
+<p class="text-muted">資料更新時間：{{ data.timestamp | strftime("%Y-%m-%d %H:%M:%S") }}</p>
 
 <!-- 本週新星 -->
 <section class="card mb-4">
@@ -16,6 +16,16 @@
         <h2 class="h5 mb-0">🌟 本週新星</h2>
     </div>
     <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <h6 class="alert-heading mb-2">💡 新星計算方式</h6>
+            <p class="mb-0">新星資源是根據以下因素綜合評分選出：</p>
+            <ul class="mb-0">
+                <li>更新時間：最近一週內更新的資源獲得額外分數</li>
+                <li>下載趨勢：一週內的下載量相對總下載量的成長率</li>
+                <li>版本支援：支援最新版本（1.20.4）的資源獲得額外分數</li>
+                <li>社群參與：被平台推薦或在多個平台發布的資源獲得額外分數</li>
+            </ul>
+        </div>
         <div class="row">
             {% for resource in data.trending.rising_stars %}
             <div class="col-md-6 mb-3">

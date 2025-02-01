@@ -297,6 +297,17 @@ class WeeklyInsightsGenerator:
             # 載入模板
             template = self.jinja_env.get_template("weekly_report.html.j2")
             
+            # 註冊時間格式化過濾器
+            def strftime(value, format="%Y-%m-%d %H:%M:%S"):
+                if isinstance(value, str):
+                    try:
+                        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                    except ValueError:
+                        return value
+                return value.strftime(format)
+            
+            self.jinja_env.filters["strftime"] = strftime
+            
             # 建立公開目錄
             public_dir = self.base_dir / "public"
             public_dir.mkdir(parents=True, exist_ok=True)

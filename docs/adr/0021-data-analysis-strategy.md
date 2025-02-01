@@ -1,4 +1,4 @@
-# ADR 0020: Data Analysis Strategy
+# ADR 0021: Data Analysis Strategy
 
 ## Status
 Proposed
