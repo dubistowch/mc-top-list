@@ -44,7 +44,7 @@ Each ADR file should include the following sections:
 
 7. **Date**
    - Include the date when the ADR was created or last modified.
-   - Use the format: `Month DD, YYYY`
+   - Use the format: `MM/DD/YYYY`
 
 ### Referencing Other ADRs
 - If a new ADR modifies or replaces a previous one, link to the old ADR.

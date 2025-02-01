@@ -1,4 +1,4 @@
-# 19. 新資料結構
+# ADR 0019: New Data Structure Design
 
 ## Status
 Accepted
@@ -9,13 +9,15 @@ As our project evolves, we need a more flexible and extensible data structure to
 2. Dynamic expansion of resource types
 3. Time-series data storage
 4. Fast data retrieval and updates
+5. Consistent data validation and type safety
 
 ## Decision
+We will implement a new data structure with the following components:
 
 ### 1. Directory Structure
 ```
 data/
-├── raw/                    # Raw data
+├── raw/                    # Raw data from platforms
 │   └── {timestamp}/       # Timestamp directory
 │       ├── modrinth_mod_raw.json
 │       ├── modrinth_plugin_raw.json
@@ -25,17 +27,17 @@ data/
 │       ├── polymart_resourcepack_raw.json
 │       ├── polymart_datapack_raw.json
 │       └── polymart_pluginpack_raw.json
-├── processed/             # Processed data
+├── processed/             # Normalized platform data
 │   └── {timestamp}/      # Timestamp directory
 │       ├── modrinth_processed.json
 │       ├── hangar_processed.json
 │       └── polymart_processed.json
-└── aggregated/           # Aggregated data
+└── aggregated/           # Combined platform data
     └── {timestamp}/     # Timestamp directory
         └── aggregated.json
 ```
 
-### 2. Data Format
+### 2. Data Format Specifications
 
 #### 2.1 Raw Data Format
 ```json
@@ -48,7 +50,7 @@ data/
 }
 ```
 
-#### 2.2 Processed Data
+#### 2.2 Processed Data Format
 ```json
 {
     "timestamp": "2025-02-01T17:02:24",
@@ -64,7 +66,7 @@ data/
 }
 ```
 
-#### 2.3 Aggregated Data
+#### 2.3 Aggregated Data Format
 ```json
 {
     "metadata": {
@@ -74,13 +76,13 @@ data/
     },
     "resources": {
         "tabs": [
-            {"id": "mod", "label": "模組"},
-            {"id": "plugin", "label": "插件"},
-            {"id": "modpack", "label": "模組包"},
-            {"id": "pluginpack", "label": "插件包"},
-            {"id": "resourcepack", "label": "資源包"},
-            {"id": "datapack", "label": "資料包"},
-            {"id": "addon", "label": "附加元件"}
+            {"id": "mod", "label": "Mods"},
+            {"id": "plugin", "label": "Plugins"},
+            {"id": "modpack", "label": "Modpacks"},
+            {"id": "pluginpack", "label": "Plugin Packs"},
+            {"id": "resourcepack", "label": "Resource Packs"},
+            {"id": "datapack", "label": "Data Packs"},
+            {"id": "addon", "label": "Add-ons"}
         ],
         "resources": {
             "mod": {
@@ -94,7 +96,7 @@ data/
 ```
 
 ### 3. Data Validation
-Using Python's type system and dataclasses for validation:
+We will use Python's type system and dataclasses for validation:
 ```python
 @dataclass
 class Resource:
@@ -114,42 +116,50 @@ class Resource:
     license: Optional[str]
 ```
 
-### 4. Time Management
-1. Use ISO 8601 format for timestamps
-2. Use YYYYMMDD_HHMMSS format for directories
-3. Maintain `latest` symlink pointing to most recent data
+### 4. Time Management Strategy
+1. Use ISO 8601 format for timestamps in data
+2. Use YYYYMMDD_HHMMSS format for directory names
+3. Maintain `latest` symlink pointing to most recent data directory
+4. Implement data retention policies for historical data
 
 ## Consequences
 
 ### Positive
-- Better data organization
-- Support for time-series data
-- Type-safe data handling
-- Easier version control
-- Improved data retrieval performance
-- 支援多平台資源統一管理（Modrinth、Hangar、Polymart）
-- 資源類型分檔儲存提高了資料的可讀性
+1. Improved data organization and structure
+2. Robust support for time-series data analysis
+3. Type-safe data handling with validation
+4. Better version control and data tracking
+5. Enhanced data retrieval performance
+6. Unified management of multi-platform resources
+7. Improved data readability through type separation
 
 ### Negative
-- Requires more storage space
-- Increased data management complexity
-- Requires periodic data cleanup
-- 需要處理不同平台的資料格式差異
-- 需要維護多個平台的 API 相容性
+1. Increased storage space requirements
+2. Higher complexity in data management
+3. Need for periodic data cleanup
+4. Additional overhead in handling platform-specific data formats
+5. Ongoing maintenance of API compatibility
+6. More complex data migration processes
 
-## Implementation Notes
-1. Use Python's `pathlib` for path handling
-2. Implement data cleanup strategy
-3. Ensure correct file permissions
-4. Implement error recovery mechanisms
-5. 確保各平台的資料轉換邏輯正確
-6. 定期檢查 API 變更
+## Implementation Guidelines
+1. Use Python's `pathlib` for consistent path handling
+2. Implement automated data cleanup strategies
+3. Ensure proper file permissions and security
+4. Develop robust error recovery mechanisms
+5. Maintain platform-specific data transformation logic
+6. Regular API compatibility checks
+7. Implement data integrity validation
 
 ## Related ADRs
 - [ADR 0002](./0002-store-data-as-static-json.md) (Superseded)
 - [ADR 0012](./0012-resource-type-expansion.md)
 - [ADR 0015](./0015-data-aggregation-and-storage.md)
 - [ADR 0018](./0018-resource-type-modification-guide.md)
+
+## References
+- [Python Type Hints Documentation](https://docs.python.org/3/library/typing.html)
+- [ISO 8601 Time Format](https://www.iso.org/iso-8601-date-and-time-format.html)
+- [JSON Schema Specification](https://json-schema.org/)
 
 ## Date
 02/01/2025

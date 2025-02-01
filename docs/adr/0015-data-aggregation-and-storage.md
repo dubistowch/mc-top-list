@@ -41,4 +41,6 @@ We will implement the following data aggregation and storage strategy:
 - [ADR 0013](./0013-codebase-restructuring.md)
 - [ADR 0014](./0014-testing-and-quality-assurance.md)
 
-Date: 2025-02-01
+
+## Date
+02/01/2025

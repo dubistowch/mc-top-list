@@ -1,36 +1,31 @@
-# 18. Resource Type 修改指南
+# ADR 0018: Resource Type Modification Guide
 
-日期: 2024-02-01
+## Status
+Accepted
 
-## 狀態
+## Context
+When adding or modifying resource types in the system, multiple related code components need to be updated simultaneously. To ensure consistency and completeness of modifications, we need a clear guide that outlines all the necessary changes.
 
-已接受
+## Decision
+We will establish a standardized process that lists all code locations that need to be updated when adding or modifying resource types:
 
-## 背景
+### 1. Configuration Updates
+- Location: `scraper/config.yml`
+- Required Changes:
+  - Add new type to the `resource_types` list for corresponding platforms
 
-在系統中新增或修改 resource type 時,需要同時修改多個相關的程式碼部分。為了確保修改的一致性和完整性,需要一個明確的指南來說明所有需要修改的部分。
+### 2. API Client Modifications
+- Location: `scraper/clients/{platform}.py`
+- Required Changes:
+  - Add mappings in type conversion (e.g., `category_map`, `type_map`)
+  - Ensure `fetch_resources` method supports new types
+  - Implement resource type grouping data structures
 
-## 決策
-
-我們決定建立一個標準化的流程,列出新增或修改 resource type 時需要更新的所有程式碼位置:
-
-### 1. 設定檔修改
-- 位置：`scraper/config.yml`
-- 修改項目：
-  - 在對應平台的 `resource_types` 列表中新增新的類型
-
-### 2. API 客戶端修改
-- 位置：`scraper/clients/{platform}.py`
-- 修改項目：
-  - 在類型映射中新增對應（如 `category_map`、`type_map`）
-  - 確保 `fetch_resources` 方法支援新的類型
-  - 實作資源類型分組的資料結構
-
-### 3. 資料儲存格式
-- 原始資料：
-  - 位置：`data/raw/{timestamp}/{platform}_{type}_raw.json`
-  - 格式：每個資源類型獨立檔案
-  - 結構：
+### 3. Data Storage Format
+- Raw Data:
+  - Location: `data/raw/{timestamp}/{platform}_{type}_raw.json`
+  - Format: Separate file for each resource type
+  - Structure:
     ```json
     {
       "hits": [...],
@@ -39,10 +34,10 @@
       "total": 50
     }
     ```
-- 處理後資料：
-  - 位置：`data/processed/{timestamp}/{platform}_processed.json`
-  - 格式：所有類型合併在同一檔案
-  - 結構：
+- Processed Data:
+  - Location: `data/processed/{timestamp}/{platform}_processed.json`
+  - Format: All types merged in single file
+  - Structure:
     ```json
     {
       "timestamp": "2024-02-01T00:00:00Z",
@@ -55,65 +50,62 @@
     }
     ```
 
-### 4. 資料轉換器修改
-- 位置：`scraper/services/transformers/{platform}.py`
-- 修改項目：
-  - 確保 `transform` 方法支援新的 resource type
-  - 更新相關的日誌記錄
-  - 處理新類型特有的欄位轉換
+### 4. Data Transformer Updates
+- Location: `scraper/services/transformers/{platform}.py`
+- Required Changes:
+  - Ensure `transform` method supports new resource type
+  - Update related logging
+  - Handle type-specific field conversions
 
-### 5. 資料聚合修改
-- 位置：`scraper/services/aggregator.py`
-- 修改項目：
-  - 在 `_group_resources` 方法中新增類型標籤
-  - 確保新類型的資源能正確分類
-  - 更新統計計算邏輯
+### 5. Data Aggregator Modifications
+- Location: `scraper/services/aggregator.py`
+- Required Changes:
+  - Add type labels in `_group_resources` method
+  - Ensure correct classification of new type resources
+  - Update statistics calculation logic
 
-### 6. 測試案例修改
-- 位置：`scraper/tests/test_scraper.py`
-- 修改項目：
-  - 新增新 resource type 的測試資料
-  - 新增轉換邏輯的測試案例
-  - 新增聚合結果的測試案例
-  - 更新相關的 mock 資料
+### 6. Test Case Updates
+- Location: `scraper/tests/test_scraper.py`
+- Required Changes:
+  - Add test data for new resource type
+  - Add test cases for transformation logic
+  - Add test cases for aggregation results
+  - Update related mock data
 
-### 7. 文件更新
-- 修改項目：
-  - 更新 README.md 中的支援資源類型列表
-  - 更新 API 文件中的資源類型說明
-  - 更新聚合結果的格式文件
-  - 更新相關的 ADR 文件
+### 7. Documentation Updates
+- Required Changes:
+  - Update supported resource types list in README.md
+  - Update resource type descriptions in API documentation
+  - Update aggregation result format documentation
+  - Update related ADR documents
 
-## 影響
+## Consequences
 
-### 正面影響
+### Positive
+1. Standardized modification process reduces oversights
+2. Clear modification guide improves development efficiency
+3. Complete documentation updates ensure system documentation accuracy
+4. Ensures consistency in data aggregation results
+5. Resource type file separation improves data readability and maintainability
+6. Independent file storage facilitates version control and diff comparison
 
-1. 標準化的修改流程可以減少遺漏
-2. 明確的修改指南可以提高開發效率
-3. 完整的文件更新可以確保系統文件的準確性
-4. 確保資料聚合結果的一致性
-5. 資源類型分檔儲存提高了資料的可讀性和可維護性
-6. 獨立檔案儲存便於資料的版本控制和差異比對
+### Negative
+1. Multiple files need modification for each new resource type
+2. Additional testing work required to ensure modification correctness
+3. Need to ensure aggregation logic compatibility with new resource types
+4. Resource type file separation results in increased file count
+5. Increased complexity in maintaining cross-type relationships
+6. Potential performance impact from handling multiple file types
 
-### 負面影響
+## Related ADRs
+- [ADR 0015](./0015-data-aggregation-and-storage.md)
+- [ADR 0019](./0019-new-data-structure.md)
 
-1. 每次新增 resource type 需要修改多個檔案
-2. 需要額外的測試工作來確保修改的正確性
-3. 需要確保聚合邏輯與新的 resource type 相容
-4. 資源類型分檔儲存會產生較多的檔案數量
+## References
+- [Polymart API Documentation](https://polymart.org/wiki/api)
+- [Modrinth API Documentation](https://docs.modrinth.com/api-spec/)
+- System Architecture Documentation
+- [ADR 0000](./0000-adr-writing-convention.md)
 
-## 備註
-
-- 在進行修改時,建議先在測試環境中完整測試
-- 確保所有相關的日誌記錄都有適當更新
-- 考慮向後相容性問題
-- 確保聚合結果的格式保持一致性
-- 定期檢查資料儲存格式是否符合規範
-- 考慮使用工具自動化部分修改流程
-
-## 參考資料
-
-- Polymart API 文件: https://polymart.org/wiki/api
-- Modrinth API 文件: https://docs.modrinth.com/api-spec/
-- 系統架構文件
-- ADR-0000: 架構決策記錄模板 
+## Date
+02/01/2025
