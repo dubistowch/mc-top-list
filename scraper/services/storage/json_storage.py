@@ -10,11 +10,22 @@ from pathlib import Path
 
 from .base import BaseStorage
 from ...models.resource import Resource
+from ...config import get_config
 
 logger = logging.getLogger(__name__)
 
 class JsonStorage(BaseStorage):
     """Storage implementation using JSON files"""
+    
+    def __init__(self, base_dir: Path = None):
+        """
+        Initialize storage with base directory
+        
+        Args:
+            base_dir: Base directory for data storage
+        """
+        super().__init__(base_dir)
+        self.config = get_config()
     
     async def save_raw_data(self, data: Dict[str, Any], timestamp: datetime) -> None:
         """
@@ -30,20 +41,35 @@ class JsonStorage(BaseStorage):
             timestamp_dir = self.base_dir / "data" / "raw" / timestamp_str
             timestamp_dir.mkdir(parents=True, exist_ok=True)
             
+            # Get platforms that support multiple resource types
+            multi_type_platforms = [
+                platform for platform, config in self.config.get("platforms", {}).items()
+                if "resource_types" in config
+            ]
+            
             for platform, platform_data in data.items():
-                if platform == "modrinth":
-                    # For Modrinth, save each resource type separately
+                if platform in multi_type_platforms:
+                    # For platforms that support multiple resource types
                     for resource_type, type_data in platform_data.items():
                         file_path = timestamp_dir / f"{platform}_{resource_type}_raw.json"
                         logger.info("Saving raw data for %s %s to %s", platform, resource_type, file_path)
                         with open(file_path, "w", encoding="utf-8") as f:
                             json.dump(type_data, f, indent=2, ensure_ascii=False)
                 else:
-                    # For other platforms, keep the original behavior
-                    file_path = timestamp_dir / f"{platform}_raw.json"
-                    logger.info("Saving raw data for %s to %s", platform, file_path)
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        json.dump(platform_data, f, indent=2, ensure_ascii=False)
+                    # For platforms with single resource type (like Hangar)
+                    # Extract the result data and save it with the resource type
+                    if platform == "hangar":
+                        result_data = platform_data.get("result", [])
+                        file_path = timestamp_dir / f"{platform}_plugin_raw.json"
+                        logger.info("Saving raw data for %s to %s", platform, file_path)
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            json.dump({"result": result_data}, f, indent=2, ensure_ascii=False)
+                    else:
+                        # For other single type platforms
+                        file_path = timestamp_dir / f"{platform}_raw.json"
+                        logger.info("Saving raw data for %s to %s", platform, file_path)
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            json.dump(platform_data, f, indent=2, ensure_ascii=False)
                     
         except Exception as e:
             logger.error("Failed to save raw data: %s", str(e))

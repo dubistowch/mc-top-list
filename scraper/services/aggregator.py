@@ -9,6 +9,8 @@ from pathlib import Path
 from ..models.resource import Resource, ResourceCategory, ResourceType
 from ..services.storage.json_storage import JsonStorage
 from ..services.storage.latest_symlink import update_latest_symlink
+from ..services.html_generator import HtmlGenerator
+from ..config import get_config
 
 logger = structlog.get_logger(__name__)
 
@@ -23,6 +25,8 @@ class ResourceAggregator:
             storage: Storage service instance
         """
         self.storage = storage
+        self.config = get_config()
+        self.html_generator = HtmlGenerator(storage.base_dir)
     
     def _group_resources(self, resources: List[Resource]) -> Dict:
         """
@@ -34,16 +38,18 @@ class ResourceAggregator:
         Returns:
             Dict with grouped resources by type
         """
+        # 從設定檔取得資源類型設定
+        resource_types = self.config.get("resource_types", {})
+        
+        # 建立分頁列表
+        tabs = [
+            {"id": type_id, "label": config["label"]}
+            for type_id, config in resource_types.items()
+        ]
+        
         # 按資源類型分組
         grouped = {
-            "tabs": [
-                {"id": ResourceType.MOD.value, "label": "模組"},
-                {"id": ResourceType.PLUGIN.value, "label": "插件"},
-                {"id": ResourceType.MODPACK.value, "label": "模組包"},
-                {"id": ResourceType.RESOURCEPACK.value, "label": "資源包"},
-                {"id": ResourceType.DATAPACK.value, "label": "資料包"},
-                {"id": ResourceType.ADDON.value, "label": "附加元件"}
-            ],
+            "tabs": tabs,
             "resources": defaultdict(lambda: defaultdict(list))
         }
         
@@ -84,7 +90,11 @@ class ResourceAggregator:
             # Load processed data
             all_resources = []
             platforms = []
-            for platform in ["modrinth", "hangar"]:
+            
+            # Get platforms from config
+            configured_platforms = self.config.get("platforms", {}).keys()
+            
+            for platform in configured_platforms:
                 try:
                     resources = self.storage.load_processed_data(timestamp, platform)
                     if resources:
@@ -110,6 +120,9 @@ class ResourceAggregator:
             
             # Save aggregated data
             self.storage.save_aggregated_data(timestamp, result)
+            
+            # Generate HTML
+            self.html_generator.generate(timestamp)
             
             # Update latest symlink
             try:

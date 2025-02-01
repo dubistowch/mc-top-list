@@ -12,10 +12,11 @@ class ResourceType(str, Enum):
     MODPACK = "modpack"
     RESOURCEPACK = "resourcepack"
     DATAPACK = "datapack"
+    PLUGINPACK = "pluginpack"
     ADDON = "addon"
 
 # For backwards compatibility
-ResourceTypeLiteral = Literal["mod", "plugin", "modpack", "resourcepack", "datapack", "addon"]
+ResourceTypeLiteral = Literal["mod", "plugin", "modpack", "resourcepack", "datapack", "pluginpack", "addon"]
 
 class ResourceCategory(str, Enum):
     """Resource category enumeration."""

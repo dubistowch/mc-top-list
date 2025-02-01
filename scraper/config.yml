@@ -9,6 +9,8 @@ platforms:
       - modpack
       - resourcepack
       - datapack
+    color: "#00AF5C"
+    label: "Modrinth"
   
   hangar:
     api_url: "https://hangar.papermc.io/api/v1"
@@ -16,6 +18,20 @@ platforms:
     resource_types:
       - plugin
       - addon
+    color: "#2D3283"
+    label: "Hangar"
+
+  polymart:
+    api_url: "https://api.polymart.org/v1"
+    batch_size: 100
+    resource_types:
+      - plugin
+      - mod
+      - resourcepack
+      - datapack
+      - pluginpack
+    color: "#FF6B6B"
+    label: "Polymart"
 
 storage:
   raw_data_dir: "data/raw"
@@ -23,4 +39,27 @@ storage:
   
 logging:
   level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s" 
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+resource_types:
+  mod:
+    label: "模組"
+    id: "mod"
+  plugin:
+    label: "插件"
+    id: "plugin"
+  modpack:
+    label: "模組包"
+    id: "modpack"
+  pluginpack:
+    label: "插件包"
+    id: "pluginpack"
+  resourcepack:
+    label: "資源包"
+    id: "resourcepack"
+  datapack:
+    label: "資料包"
+    id: "datapack"
+  addon:
+    label: "附加元件"
+    id: "addon" 

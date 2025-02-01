@@ -7,6 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from scraper.utils.logger import setup_logger
+from scraper.config import get_config
 
 class APIKeyManager:
     """API 密鑰管理器"""
@@ -19,6 +20,7 @@ class APIKeyManager:
             env_path: .env 檔案路徑，預設為專案根目錄的 .env
         """
         self.logger = setup_logger()
+        self.config = get_config()
         
         # 如果沒有指定 .env 路徑，則嘗試在專案根目錄尋找
         if not env_path:
@@ -37,7 +39,9 @@ class APIKeyManager:
     def _load_keys(self) -> None:
         """從環境變數載入 API 密鑰"""
         self.keys = {}
-        platforms = ["modrinth", "hangar"]
+        
+        # 從設定檔取得平台列表
+        platforms = self.config.get("platforms", {}).keys()
         
         for platform in platforms:
             env_key = os.getenv(f"{platform.upper()}_API_KEY")
@@ -49,15 +53,12 @@ class APIKeyManager:
     
     def get_key(self, platform: str) -> Optional[str]:
         """
-        獲取指定平台的 API 密鑰
+        取得指定平台的 API 密鑰
         
         Args:
-            platform: 平台名稱 (例如: "modrinth", "hangar")
+            platform: 平台名稱
             
         Returns:
-            API 密鑰，如果找不到則返回 None
+            API 密鑰，如果找不到則回傳 None
         """
-        key = self.keys.get(platform)
-        if not key:
-            self.logger.warning(f"找不到平台的 API 密鑰: {platform}")
-        return key 
+        return self.keys.get(platform) 

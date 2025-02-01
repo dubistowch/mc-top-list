@@ -70,9 +70,12 @@ class HangarClient(BaseClient):
                     raise ClientError(f"Hangar API request failed: {error_text}")
                 
                 data = await response.json()
+                result = data.get("result", [])
                 logger.info("hangar_resources_fetched", 
-                          result_count=len(data.get("result", [])))
-                return data
+                          result_count=len(result))
+                
+                # 只回傳資源列表部分，並加上 plugin 類型
+                return {"plugin": {"result": result}}
                 
         except aiohttp.ClientError as e:
             logger.error("hangar_request_error", error=str(e))

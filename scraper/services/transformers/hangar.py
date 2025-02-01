@@ -27,7 +27,10 @@ class HangarTransformer(BaseTransformer):
         resources = []
         
         try:
-            results = raw_data.get("result", [])
+            # 從新的資料結構中取得 plugin 類型的資源
+            plugin_data = raw_data.get("plugin", {})
+            results = plugin_data.get("result", [])
+            
             for result in results:
                 try:
                     # Get stats safely

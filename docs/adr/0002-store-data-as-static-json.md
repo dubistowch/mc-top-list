@@ -1,7 +1,7 @@
 # ADR 0002: Store Data as Static JSON
 
 ## Status
-Accepted
+Superseded by [ADR 0018](./0018-new-data-structure.md)
 
 ## Context
 Our project requires a data storage solution that balances:

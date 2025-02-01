@@ -14,10 +14,12 @@ from pathlib import Path
 from scraper.clients.client_factory import ClientFactory, BaseClient
 from scraper.clients.modrinth import ModrinthClient
 from scraper.clients.hangar import HangarClient
+from scraper.clients.polymart import PolymartClient
 from scraper.models.resource import Resource
 from scraper.models.platform import Platform
 from scraper.services.transformers.modrinth import ModrinthTransformer
 from scraper.services.transformers.hangar import HangarTransformer
+from scraper.services.transformers.polymart import PolymartTransformer
 from scraper.services.storage.json_storage import JsonStorage
 from scraper.services.aggregator import ResourceAggregator
 
@@ -65,12 +67,14 @@ class ScraperService:
         """Register platform-specific API clients"""
         self.client_factory.register("modrinth", ModrinthClient)
         self.client_factory.register("hangar", HangarClient)
+        self.client_factory.register("polymart", PolymartClient)
         
     def _init_transformers(self) -> None:
         """Initialize platform-specific transformers"""
         self.transformers = {
             "modrinth": ModrinthTransformer(),
-            "hangar": HangarTransformer()
+            "hangar": HangarTransformer(),
+            "polymart": PolymartTransformer()
         }
         
     def _init_storage(self) -> None:
@@ -152,7 +156,8 @@ class ScraperService:
         
         platforms = [
             Platform(name="modrinth", batch_size=100),
-            Platform(name="hangar", batch_size=50)
+            Platform(name="hangar", batch_size=50),
+            Platform(name="polymart", batch_size=100)
         ]
         
         try:
