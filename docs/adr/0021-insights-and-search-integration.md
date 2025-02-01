@@ -109,6 +109,92 @@ public/
    }
    ```
 
+### 5. 指令與資料管理
+
+1. 指令整合：
+   ```bash
+   # 生成所有頁面（週報和搜尋頁面）
+   python -m insights generate
+
+   # 清除舊的輸出檔案
+   python -m insights clean
+   ```
+
+   指令說明：
+   - `generate`: 一次性生成所有頁面，包含：
+     - 週報頁面（index.html）
+     - 搜尋頁面（search.html）
+     - 靜態資源（css、js、images）
+     - 建立必要的符號連結
+   - `clean`: 清除所有生成的檔案，但保留原始資料
+
+2. 資料目錄連結：
+   ```
+   data/
+   ├── raw/                 # 原始資料
+   ├── processed/           # 處理後資料
+   ├── aggregated/          # 彙整資料
+   │   ├── {timestamp}/    # 時間戳記目錄
+   │   └── latest/         # 最新資料的符號連結
+   ├── reports/            # 週報 JSON 檔案
+   └── public/             # 公開資料
+       ├── data/           # 符號連結到 aggregated/latest
+       └── reports/        # 符號連結到 reports/
+
+   # 建立符號連結的指令
+   ln -sf ../aggregated/latest public/data
+   ln -sf ../reports public/reports
+   ```
+
+### 6. 程式碼重組
+
+1. 需要移除的檔案：
+   ```
+   scraper/services/aggregator/html_generator.py    # 搜尋頁面生成器移至 insights
+   public/index.html                               # 由新的生成器取代
+   public/js/search.js                            # 移至新結構
+   public/css/style.css                           # 移至新結構
+   ```
+
+2. 需要移動的檔案：
+   ```
+   # 從 scraper 移動到 insights
+   scraper/services/aggregator/templates/* -> insights/templates/search/
+   scraper/services/aggregator/static/*    -> insights/static/
+
+   # 重組後的 insights 目錄結構
+   insights/
+   ├── __init__.py
+   ├── __main__.py
+   ├── services/
+   │   ├── __init__.py
+   │   ├── weekly_insights.py
+   │   └── search_insights.py      # 新增：搜尋頁面生成
+   ├── templates/
+   │   ├── base.html.j2           # 共用模板
+   │   ├── components/            # 共用元件
+   │   ├── weekly/               # 週報模板
+   │   └── search/               # 搜尋模板
+   └── static/
+       ├── css/
+       ├── js/
+       └── img/
+   ```
+
+3. 設定檔調整：
+   ```yaml
+   # config.yml 新增設定
+   insights:
+     templates:
+       path: insights/templates
+     static:
+       path: insights/static
+     output:
+       path: public
+     data:
+       path: data
+   ```
+
 ## 影響
 
 ### 正面影響
@@ -134,6 +220,19 @@ public/
 4. 實作共用元件
 5. 更新部署流程
 6. 加入新的測試案例
+
+7. 資料遷移步驟：
+   - 備份現有的 public 目錄
+   - 建立新的目錄結構
+   - 遷移靜態資源
+   - 建立必要的符號連結
+   - 驗證資料存取
+
+8. 程式碼清理步驟：
+   - 確認所有相依性
+   - 移除廢棄的程式碼
+   - 更新單元測試
+   - 更新文件
 
 ## 相關 ADR
 

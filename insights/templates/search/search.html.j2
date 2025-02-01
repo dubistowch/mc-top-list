@@ -1,0 +1,203 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Minecraft 資源排行榜{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<style>
+    .platform-badge {
+        font-size: 0.8em;
+        padding: 0.3em 0.6em;
+        cursor: pointer;
+    }
+    {% for platform, config in data.platforms.items() %}
+    .{{ platform }} {
+        background-color: var(--bs-{{ config.color }});
+        color: white;
+    }
+    {% endfor %}
+    .nav-tabs .nav-link {
+        color: #495057;
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: bold;
+    }
+    .platform-badge.disabled {
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">資料說明</h5>
+        <p class="card-text">
+            此排行榜資料來自 {% for platform in data.platforms %}{{ data.platforms[platform].label }}{% if not loop.last %}、{% endif %}{% endfor %} 平台，每小時更新一次。
+            資料包含模組的下載次數、支援版本等資訊。
+        </p>
+        <p class="mb-0">
+            {% for platform, config in data.platforms.items() %}
+            <span class="badge platform-badge {{ platform }}" data-platform="{{ platform }}">{{ config.label }}</span>
+            {% endfor %}
+        </p>
+        <p class="mt-2">
+            <small class="text-muted">最後更新時間：<span id="lastUpdate"></span></small>
+        </p>
+    </div>
+</div>
+
+<ul class="nav nav-tabs" id="resourceTabs" role="tablist"></ul>
+<div class="tab-content mt-3">
+    <div class="tab-pane fade show active">
+        <table id="modTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>名稱</th>
+                    <th>描述</th>
+                    <th>作者</th>
+                    <th>下載次數</th>
+                    <th>更新時間</th>
+                    <th>平台</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script>
+    let resourceData = null;
+    let dataTable = null;
+    let activePlatforms = new Set({{ data.platforms.keys()|list|tojson }});
+
+    function updatePlatformBadges() {
+        $('.platform-badge').each(function() {
+            const platform = $(this).data('platform');
+            if (activePlatforms.has(platform)) {
+                $(this).removeClass('disabled');
+            } else {
+                $(this).addClass('disabled');
+            }
+        });
+    }
+
+    function filterDataByPlatforms(data) {
+        return data.filter(item => activePlatforms.has(item.platform.toLowerCase()));
+    }
+
+    function switchResourceType(type) {
+        if (dataTable) {
+            dataTable.destroy();
+        }
+        
+        const resources = resourceData.resources.resources[type] || {};
+        const popularResources = filterDataByPlatforms(resources.popular || []);
+        
+        dataTable = $('#modTable').DataTable({
+            data: popularResources,
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/zh-HANT.json'
+            },
+            pageLength: 25,
+            order: [[3, 'desc']], // 預設按下載次數排序
+            columns: [
+                { 
+                    data: 'name',
+                    render: function(data, type, row) {
+                        return `<a href="${row.website_url}" target="_blank">${data}</a>`;
+                    }
+                },
+                { data: 'description' },
+                { data: 'author' },
+                { 
+                    data: 'downloads',
+                    render: $.fn.dataTable.render.number(',', '.', 0)
+                },
+                { 
+                    data: 'updated_at',
+                    render: function(data) {
+                        return moment(data).format('YYYY/MM/DD HH:mm');
+                    }
+                },
+                { 
+                    data: 'platform',
+                    render: function(data) {
+                        const platformConfig = {{ data.platforms|tojson }}[data.toLowerCase()];
+                        return `<span class="badge platform-badge ${data.toLowerCase()}">${platformConfig.label}</span>`;
+                    }
+                }
+            ]
+        });
+    }
+
+    function initTabs(tabs) {
+        const tabList = $('#resourceTabs');
+        tabs.forEach((tab, index) => {
+            const li = $('<li class="nav-item">').appendTo(tabList);
+            const a = $('<a class="nav-link">')
+                .text(tab.label)
+                .attr('id', `${tab.id}-tab`)
+                .attr('data-bs-toggle', 'tab')
+                .attr('href', '#')
+                .attr('role', 'tab')
+                .on('click', (e) => {
+                    e.preventDefault();
+                    $('.nav-link').removeClass('active');
+                    $(e.target).addClass('active');
+                    switchResourceType(tab.id);
+                })
+                .appendTo(li);
+            
+            if (index === 0) {
+                a.addClass('active');
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        // 平台過濾功能
+        $('.platform-badge').click(function() {
+            const platform = $(this).data('platform');
+            if (activePlatforms.has(platform)) {
+                if (activePlatforms.size > 1) { // 確保至少有一個平台被選中
+                    activePlatforms.delete(platform);
+                }
+            } else {
+                activePlatforms.add(platform);
+            }
+            updatePlatformBadges();
+            
+            // 重新載入當前分頁的資料
+            const activeTab = $('.nav-link.active');
+            const resourceType = activeTab.attr('id').replace('-tab', '');
+            switchResourceType(resourceType);
+        });
+
+        // 載入最新的資料檔案
+        fetch('data/latest/aggregated.json')
+            .then(response => response.json())
+            .then(data => {
+                resourceData = data;
+                
+                // 更新最後更新時間
+                $('#lastUpdate').text(moment(data.metadata.timestamp, "YYYYMMDD_HHmmss").format('YYYY/MM/DD HH:mm:ss'));
+                
+                // 初始化分頁
+                initTabs(data.resources.tabs);
+                
+                // 載入第一個分頁的資料
+                switchResourceType(data.resources.tabs[0].id);
+            })
+            .catch(error => {
+                console.error('Error loading data:', error);
+                alert('載入資料時發生錯誤，請稍後再試。');
+            });
+    });
+</script>
+{% endblock %} 

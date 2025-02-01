@@ -1,0 +1,133 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Minecraft 資源週報 - {{ data.timestamp }}{% endblock %}
+
+{% block extra_css %}
+<link href="/css/insights.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Minecraft 資源週報</h1>
+<p class="text-muted">資料更新時間：{{ data.timestamp }}</p>
+
+<!-- 本週新星 -->
+<section class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">🌟 本週新星</h2>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for resource in data.trending.rising_stars %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="{{ resource.website_url }}" target="_blank">{{ resource.name }}</a>
+                            <span class="badge platform-badge {{ resource.platform.lower() }}">
+                                {{ resource.platform }}
+                            </span>
+                        </h5>
+                        <p class="card-text">{{ resource.description }}</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                作者：{{ resource.author }} |
+                                下載次數：{{ "{:,}".format(resource.downloads) }}
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- 版本更新趨勢 -->
+<section class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">📊 版本支援趨勢</h2>
+    </div>
+    <div class="card-body">
+        <h3 class="h6">熱門版本 Top 5</h3>
+        <ul class="list-group">
+            {% for version, stats in data.version_updates.popular_versions %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ version }}
+                <span class="badge bg-primary rounded-pill">
+                    {{ stats.count }} 個資源
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+
+<!-- 分類焦點 -->
+<section class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">📦 分類焦點</h2>
+    </div>
+    <div class="card-body">
+        {% for type, data in data.category_highlights.items() %}
+        <div class="mb-4">
+            <h3 class="h6">{{ type | resource_type_name }}</h3>
+            <p>
+                總資源數：{{ data.total_resources }} |
+                總下載次數：{{ data.total_downloads | format_number }}
+            </p>
+            <div class="list-group">
+                {% for resource in data.top_resources %}
+                <a href="{{ resource.website_url }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ resource.name }}</h5>
+                        <span class="badge platform-badge {{ resource.platform.lower() }}">
+                            {{ resource.platform }}
+                        </span>
+                    </div>
+                    <p class="mb-1">{{ resource.description }}</p>
+                    <small class="text-muted">
+                        作者：{{ resource.author }} |
+                        下載次數：{{ "{:,}".format(resource.downloads) }}
+                    </small>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- 平台統計 -->
+<section class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">📈 平台統計</h2>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for platform, stats in data.platform_stats.items() %}
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ platform }}</h5>
+                        <p class="card-text">
+                            總資源數：{{ stats.total_resources }}<br>
+                            總下載次數：{{ "{:,}".format(stats.total_downloads) }}
+                        </p>
+                        <h6 class="card-subtitle mb-2 text-muted">資源類型分布</h6>
+                        <ul class="list-unstyled">
+                            {% for type, count in stats.resource_types.items() %}
+                            <li>{{ type }}: {{ count }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/js/insights.js"></script>
+{% endblock %} 
