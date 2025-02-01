@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 模組排行榜</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        .platform-badge {
+            font-size: 0.8em;
+            padding: 0.3em 0.6em;
+        }
+        .modrinth {
+            background-color: #00AF5C;
+            color: white;
+        }
+        .hangar {
+            background-color: #2D3283;
+            color: white;
+        }
+        .nav-tabs .nav-link {
+            color: #495057;
+        }
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Minecraft 模組排行榜</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">資料說明</h5>
+                <p class="card-text">
+                    此排行榜資料來自 Modrinth 和 Hangar 平台，每小時更新一次。
+                    資料包含模組的下載次數、支援版本等資訊。
+                </p>
+                <p class="mb-0">
+                    <span class="badge modrinth">Modrinth</span>
+                    <span class="badge hangar">Hangar</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- 資源類型分頁 -->
+        <ul class="nav nav-tabs mb-3" id="resourceTabs" role="tablist">
+            <!-- 動態產生的分頁標籤 -->
+        </ul>
+
+        <div class="table-responsive">
+            <table id="modTable" class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>名稱</th>
+                        <th>描述</th>
+                        <th>作者</th>
+                        <th>下載次數</th>
+                        <th>更新時間</th>
+                        <th>來源平台</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 動態產生的資料列 -->
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="mt-4 mb-4 text-center text-muted">
+            <small>最後更新時間：<span id="lastUpdate">載入中...</span></small>
+        </footer>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script>
+        let dataTable;
+        let resourceData;
+
+        function initTabs(tabs) {
+            const tabList = $('#resourceTabs');
+            tabs.forEach((tab, index) => {
+                const isActive = index === 0;
+                tabList.append(`
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link ${isActive ? 'active' : ''}" 
+                                id="${tab.id}-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#${tab.id}" 
+                                type="button" 
+                                role="tab" 
+                                aria-controls="${tab.id}" 
+                                aria-selected="${isActive}"
+                                onclick="switchResourceType('${tab.id}')">
+                            ${tab.label}
+                        </button>
+                    </li>
+                `);
+            });
+        }
+
+        function switchResourceType(type) {
+            if (dataTable) {
+                dataTable.destroy();
+            }
+
+            const resources = resourceData.resources.resources[type]?.popular || [];
+            
+            dataTable = $('#modTable').DataTable({
+                data: resources,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/zh-HANT.json'
+                },
+                pageLength: 25,
+                order: [[3, 'desc']], // 預設按下載次數排序
+                columns: [
+                    { 
+                        data: 'name',
+                        render: function(data, type, row) {
+                            return `<a href="${row.website_url}" target="_blank">${data}</a>`;
+                        }
+                    },
+                    { data: 'description' },
+                    { data: 'author' },
+                    { 
+                        data: 'downloads',
+                        render: $.fn.dataTable.render.number(',', '.', 0)
+                    },
+                    { 
+                        data: 'updated_at',
+                        render: function(data) {
+                            return moment(data).format('YYYY/MM/DD HH:mm');
+                        }
+                    },
+                    { 
+                        data: 'platform',
+                        render: function(data) {
+                            return `<span class="badge platform-badge ${data.toLowerCase()}">${data}</span>`;
+                        }
+                    }
+                ]
+            });
+        }
+
+        $(document).ready(function() {
+            // 載入最新的資料檔案
+            fetch('data/aggregated/latest/aggregated.json')
+                .then(response => response.json())
+                .then(data => {
+                    resourceData = data;
+                    
+                    // 更新最後更新時間
+                    $('#lastUpdate').text(moment(data.metadata.timestamp, "YYYYMMDD_HHmmss").format('YYYY/MM/DD HH:mm:ss'));
+                    
+                    // 初始化分頁
+                    initTabs(data.resources.tabs);
+                    
+                    // 載入第一個分頁的資料
+                    switchResourceType(data.resources.tabs[0].id);
+                })
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    alert('載入資料時發生錯誤，請稍後再試。');
+                });
+        });
+    </script>
+</body>
+</html> 

@@ -39,12 +39,17 @@ class HangarTransformer(BaseTransformer):
                     created_at = result.get("createdAt", "2025-01-01T00:00:00Z")
                     updated_at = result.get("lastUpdated", created_at)
                     
+                    # Get namespace info safely
+                    namespace = result.get("namespace", {})
+                    if not isinstance(namespace, dict):
+                        namespace = {}
+                    
                     # Create resource object
                     resource = Resource(
                         id=str(result["id"]),
                         name=result["name"],
                         description=result.get("description", ""),
-                        author=result.get("owner", "Unknown"),
+                        author=namespace.get("owner", "Unknown"),
                         downloads=stats.get("downloads", 0),
                         resource_type="plugin",  # Hangar only hosts plugins
                         platform="hangar",
@@ -52,7 +57,7 @@ class HangarTransformer(BaseTransformer):
                         updated_at=datetime.fromisoformat(updated_at.replace("Z", "+00:00")),
                         versions=result.get("gameVersions", []),
                         categories=result.get("categories", []),
-                        website_url=f"https://hangar.papermc.io/{result.get('owner', 'unknown')}/{result['name']}",
+                        website_url=f"https://hangar.papermc.io/{namespace.get('owner', 'unknown')}/{result['name']}",
                         source_url=None,  # Not available in API response
                         license=result.get("licenseName", "unknown")
                     )

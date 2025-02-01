@@ -5,8 +5,9 @@ platforms:
     api_url: "https://api.modrinth.com/v2"
     resource_types:
       - mod
+      - plugin
       - modpack
-      - resource-pack
+      - resourcepack
       - datapack
   
   hangar:

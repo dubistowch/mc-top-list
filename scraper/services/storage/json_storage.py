@@ -31,11 +31,19 @@ class JsonStorage(BaseStorage):
             timestamp_dir.mkdir(parents=True, exist_ok=True)
             
             for platform, platform_data in data.items():
-                file_path = timestamp_dir / f"{platform}_raw.json"
-                
-                logger.info("Saving raw data for %s to %s", platform, file_path)
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(platform_data, f, indent=2, ensure_ascii=False)
+                if platform == "modrinth":
+                    # For Modrinth, save each resource type separately
+                    for resource_type, type_data in platform_data.items():
+                        file_path = timestamp_dir / f"{platform}_{resource_type}_raw.json"
+                        logger.info("Saving raw data for %s %s to %s", platform, resource_type, file_path)
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            json.dump(type_data, f, indent=2, ensure_ascii=False)
+                else:
+                    # For other platforms, keep the original behavior
+                    file_path = timestamp_dir / f"{platform}_raw.json"
+                    logger.info("Saving raw data for %s to %s", platform, file_path)
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        json.dump(platform_data, f, indent=2, ensure_ascii=False)
                     
         except Exception as e:
             logger.error("Failed to save raw data: %s", str(e))
@@ -58,15 +66,21 @@ class JsonStorage(BaseStorage):
             for platform, platform_resources in resources.items():
                 file_path = timestamp_dir / f"{platform}_processed.json"
                 
-                # Convert resources to dictionaries
-                resource_dicts = [resource.to_dict() for resource in platform_resources]
+                # Group resources by type
+                grouped_resources = {}
+                for resource in platform_resources:
+                    resource_dict = resource.to_dict()
+                    resource_type = resource_dict.pop("resource_type")  # 移除並取得 resource_type
+                    if resource_type not in grouped_resources:
+                        grouped_resources[resource_type] = []
+                    grouped_resources[resource_type].append(resource_dict)
                 
                 logger.info("Saving processed data for %s to %s", platform, file_path)
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump({
                         "timestamp": timestamp.isoformat(),
                         "platform": platform,
-                        "resources": resource_dicts
+                        "resources": grouped_resources
                     }, f, indent=2, ensure_ascii=False)
                     
         except Exception as e:
@@ -108,7 +122,13 @@ class JsonStorage(BaseStorage):
             
         with open(file_path) as f:
             data = json.load(f)
-            return [self._parse_resource(resource) for resource in data.get("resources", [])]
+            resources = []
+            for resource_type, type_resources in data.get("resources", {}).items():
+                for resource in type_resources:
+                    # 加回 resource_type
+                    resource["resource_type"] = resource_type
+                    resources.append(self._parse_resource(resource))
+            return resources
     
     def save_aggregated_data(self, timestamp: str, data: Dict) -> None:
         """

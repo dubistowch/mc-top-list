@@ -180,10 +180,13 @@ class ScraperService:
             print(f"平台: {aggregated_result['metadata']['platforms']}")
             
             print("\n資源統計:")
-            for res_type, categories in aggregated_result['resources'].items():
-                print(f"\n{res_type}:")
-                for category, resources in categories.items():
-                    print(f"  {category}: {len(resources)} 個資源")
+            for tab in aggregated_result['resources']['tabs']:
+                res_type = tab['id']
+                categories = aggregated_result['resources']['resources'].get(res_type, {})
+                if categories:
+                    print(f"\n{tab['label']}:")
+                    for category, resources in categories.items():
+                        print(f"  {category}: {len(resources)} 個資源")
             
             logger.info("scraping_completed", 
                        platform_count=len(platforms),

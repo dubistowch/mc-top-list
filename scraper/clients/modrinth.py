@@ -89,7 +89,7 @@ class ModrinthClient(BaseClient):
         Fetch resources from Modrinth for all configured resource types
         
         Returns:
-            Dict containing fetched resources
+            Dict containing fetched resources by type
             
         Raises:
             ClientError: If the request fails
@@ -101,16 +101,16 @@ class ModrinthClient(BaseClient):
             resource_types = self.config["platforms"]["modrinth"]["resource_types"]
             
             # Fetch resources for each type
-            all_resources = {
-                "hits": [],
-                "total_hits": 0
-            }
+            all_resources = {}
             
             for resource_type in resource_types:
                 try:
                     data = await self._fetch_by_type(resource_type)
-                    all_resources["hits"].extend(data.get("hits", []))
-                    all_resources["total_hits"] += data.get("total_hits", 0)
+                    all_resources[resource_type] = data
+                    logger.info("modrinth_type_fetched",
+                               type=resource_type,
+                               hit_count=len(data.get("hits", [])),
+                               total_hits=data.get("total_hits", 0))
                 except Exception as e:
                     logger.error("modrinth_type_fetch_failed", 
                                type=resource_type,
