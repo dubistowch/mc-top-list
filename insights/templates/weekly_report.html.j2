@@ -32,7 +32,189 @@
         font-weight: normal;
         font-size: 0.75em;
     }
+    
+    /* 成長率樣式 */
+    .growth-stats {
+        background-color: var(--bs-light);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    .growth-rate {
+        font-size: 1.2em;
+        font-weight: 500;
+    }
+    .growth-rate.positive {
+        color: var(--bs-success);
+    }
+    .growth-rate.negative {
+        color: var(--bs-danger);
+    }
+    
+    /* 趨勢圖形樣式 */
+    .trend-chart {
+        display: none;
+        margin-top: 1rem;
+    }
+    
+    .trend-chart.show {
+        display: block;
+    }
+    
+    .chart-toggle {
+        color: var(--bs-primary);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .chart-toggle:hover {
+        text-decoration: underline;
+    }
+    
+    /* 資源描述樣式 */
+    .resource-description {
+        position: relative;
+        margin-bottom: 0.5rem;
+    }
+    
+    .description-content {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        -webkit-box-orient: vertical;
+        line-height: 1.5;
+        max-height: 7.5em;  /* 5 行的高度 */
+        transition: max-height 0.3s ease;
+    }
+    
+    .description-content.expanded {
+        -webkit-line-clamp: unset;
+        max-height: 1000px;  /* 足夠大的高度以顯示完整內容 */
+    }
+    
+    .description-toggle {
+        display: none;  /* 預設隱藏 */
+        color: var(--bs-primary);
+        cursor: pointer;
+        user-select: none;
+        font-size: 0.875em;
+        padding: 0.25rem 0;
+        margin-top: 0.25rem;
+    }
+    
+    .description-toggle::before {
+        content: '';
+        display: inline-block;
+        width: 0.5em;
+        height: 0.5em;
+        margin-right: 0.5em;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: rotate(45deg);
+        transition: transform 0.2s ease;
+        vertical-align: 0.1em;
+    }
+    
+    .description-toggle.expanded::before {
+        transform: rotate(-135deg);
+    }
+    
+    .description-container.has-more .description-toggle {
+        display: inline-block;
+    }
+    
+    .description-fade {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3em;
+        background: linear-gradient(to bottom, transparent, var(--bs-body-bg));
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+    }
+    
+    .description-container.has-more:not(.expanded) .description-fade {
+        opacity: 1;
+    }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化所有圖表但不顯示
+    {% for resource in data.report.trending.rising_stars %}
+    const ctx{{ resource.id }} = document.getElementById('chart-{{ resource.id }}');
+    if (ctx{{ resource.id }}) {
+        new Chart(ctx{{ resource.id }}, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 14}, (_, i) => `Day ${14-i}`),
+                datasets: [{
+                    label: '每日下載量',
+                    data: {{ resource.growth_data.daily_stats | tojson }},
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    {% endfor %}
+    
+    // 綁定展開/收合事件
+    document.querySelectorAll('.chart-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const chartId = this.dataset.target;
+            const chart = document.getElementById(chartId);
+            if (chart) {
+                chart.classList.toggle('show');
+                this.textContent = chart.classList.contains('show') ? '收合趨勢圖' : '展開趨勢圖';
+            }
+        });
+    });
+    
+    // 檢查描述內容是否需要展開按鈕
+    document.querySelectorAll('.description-container').forEach(container => {
+        const content = container.querySelector('.description-content');
+        const toggle = container.querySelector('.description-toggle');
+        
+        if (content && toggle) {
+            // 檢查內容是否超過最大高度
+            const isOverflowing = content.scrollHeight > content.clientHeight;
+            
+            if (isOverflowing) {
+                container.classList.add('has-more');
+                
+                // 綁定展開/收合事件
+                toggle.addEventListener('click', function() {
+                    content.classList.toggle('expanded');
+                    container.classList.toggle('expanded');
+                    toggle.classList.toggle('expanded');
+                    toggle.textContent = content.classList.contains('expanded') ? 
+                        '收合詳細資訊' : '展開詳細資訊';
+                });
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
 
 {% block content %}
@@ -73,8 +255,41 @@
                                 {% endfor %}
                             </div>
                         </h5>
-                        <p class="card-text">{{ resource.description }}</p>
-                        <div class="d-flex justify-content-between align-items-end">
+                        <div class="description-container">
+                            <div class="resource-description">
+                                <div class="description-content">{{ resource.description }}</div>
+                                <div class="description-fade"></div>
+                            </div>
+                            <div class="description-toggle">展開詳細資訊</div>
+                        </div>
+                        
+                        <!-- 成長數據 -->
+                        <div class="growth-stats">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">本週下載</small>
+                                    <span class="h5 mb-0">{{ "{:,}".format(resource.growth_data.current_week_downloads) }}</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">上週下載</small>
+                                    <span class="h5 mb-0">{{ "{:,}".format(resource.growth_data.last_week_downloads) }}</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted d-block">成長率</small>
+                                    <span class="growth-rate {% if resource.growth_data.growth_rate > 0 %}positive{% else %}negative{% endif %}">
+                                        {{ resource.growth_data.growth_rate | format_growth_rate }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <span class="chart-toggle" data-target="chart-{{ resource.id }}">展開趨勢圖</span>
+                            </div>
+                            <div class="trend-chart" id="chart-{{ resource.id }}">
+                                <canvas height="100"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-end mt-3">
                             <div>
                                 <p class="card-text mb-0">
                                     <small class="text-muted">
@@ -161,7 +376,13 @@
                         <div class="d-flex w-100 justify-content-between align-items-start">
                             <div>
                                 <h5 class="mb-1">{{ resource.name }}</h5>
-                                <p class="mb-1">{{ resource.description }}</p>
+                                <div class="description-container">
+                                    <div class="resource-description">
+                                        <div class="description-content">{{ resource.description }}</div>
+                                        <div class="description-fade"></div>
+                                    </div>
+                                    <div class="description-toggle">展開詳細資訊</div>
+                                </div>
                                 <small class="text-muted">
                                     作者：{{ resource.author }} |
                                     總下載次數：{{ "{:,}".format(resource.downloads) }}

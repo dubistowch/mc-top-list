@@ -12,3 +12,4 @@ __pycache__/
 .coverage
 data/
 mc_top_list.egg-info/
+public/

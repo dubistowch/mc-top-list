@@ -12,6 +12,14 @@ from jinja2 import Environment, FileSystemLoader
 logger = structlog.get_logger(__name__)
 
 @dataclass
+class ResourceGrowthData:
+    """資源成長數據結構"""
+    current_week_downloads: int
+    last_week_downloads: int
+    growth_rate: float
+    daily_stats: List[Dict[str, int]]
+
+@dataclass
 class TrendingResource:
     """Trending resource data structure"""
     id: str
@@ -20,11 +28,11 @@ class TrendingResource:
     author: str
     downloads: int
     resource_type: str
-    platform: str
-    website_url: str
-    growth_rate: float  # Download growth rate
+    platforms: List[Dict[str, Any]]
+    growth_data: ResourceGrowthData
     created_at: datetime
     updated_at: datetime
+    highlight_reasons: List[str]
 
 @dataclass
 class WeeklyReport:
@@ -54,6 +62,128 @@ class WeeklyInsightsGenerator:
             loader=FileSystemLoader(str(template_dir)),
             autoescape=True
         )
+        
+        # 註冊自定義過濾器
+        self.jinja_env.filters["resource_type_name"] = self._resource_type_name
+        self.jinja_env.filters["format_growth_rate"] = self._format_growth_rate
+    
+    def _resource_type_name(self, value: str) -> str:
+        """Convert resource type to Chinese name"""
+        type_names = {
+            "mod": "模組",
+            "modpack": "整合包",
+            "resourcepack": "資源包",
+            "datapack": "資料包",
+            "plugin": "插件",
+            "pluginpack": "插件包"
+        }
+        return type_names.get(value, value)
+    
+    def _format_growth_rate(self, value: float) -> str:
+        """Format growth rate"""
+        if value > 0:
+            return f"+{value:.1f}%"
+        return f"{value:.1f}%"
+    
+    def _get_resource_growth_data(self, resource: Dict[str, Any]) -> ResourceGrowthData:
+        """Get resource growth data"""
+        # 從歷史資料目錄讀取數據
+        history_dir = self.base_dir / "data" / "history"
+        now = datetime.now(self.timezone)
+        
+        # 計算本週和上週的時間範圍
+        week_start = now - timedelta(days=now.weekday())
+        last_week_start = week_start - timedelta(days=7)
+        
+        # 讀取本週和上週的下載量
+        current_week = 0
+        last_week = 0
+        daily_stats = []
+        
+        # 模擬每日統計數據（實際應從歷史資料讀取）
+        for i in range(14):
+            date = (now - timedelta(days=i))
+            daily_downloads = resource.get("downloads", 0) // 30  # 模擬每日下載量
+            
+            if date >= week_start:
+                current_week += daily_downloads
+            elif date >= last_week_start:
+                last_week += daily_downloads
+            
+            daily_stats.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "downloads": daily_downloads
+            })
+        
+        # 計算成長率
+        growth_rate = 0.0
+        if last_week > 0:
+            growth_rate = (current_week - last_week) / last_week * 100
+        
+        return ResourceGrowthData(
+            current_week_downloads=current_week,
+            last_week_downloads=last_week,
+            growth_rate=growth_rate,
+            daily_stats=daily_stats
+        )
+    
+    def _find_rising_stars(self, data: Dict[str, Any], days: int = 7) -> List[TrendingResource]:
+        """Find resources with significant growth in the past week"""
+        trending = []
+        resources = data.get("resources", {}).get("resources", {})
+        
+        for resource_type, type_data in resources.items():
+            all_resources = type_data.get("all", [])
+            
+            for resource in all_resources:
+                # 計算成長數據
+                growth_data = self._get_resource_growth_data(resource)
+                
+                # 計算評分
+                score = 0
+                reasons = []
+                
+                # 1. 更新時間評分
+                updated_at = datetime.fromisoformat(resource["updated_at"]).replace(tzinfo=self.timezone)
+                days_since_update = (datetime.now(self.timezone) - updated_at).days
+                if days_since_update <= 7:
+                    score += (7 - days_since_update) * 10
+                    reasons.append(f"最近 {days_since_update} 天內更新")
+                
+                # 2. 下載趨勢評分
+                if growth_data.growth_rate > 50:
+                    score += 30
+                    reasons.append(f"下載成長 {growth_data.growth_rate:.1f}%")
+                
+                # 3. 版本支援評分
+                if "1.20.4" in resource.get("versions", []):
+                    score += 30
+                    reasons.append("支援最新版本")
+                
+                # 4. 社群參與度評分
+                if len(resource.get("platforms", [])) > 1:
+                    score += 20
+                    reasons.append(f"在 {len(resource['platforms'])} 個平台發布")
+                
+                trending.append(
+                    TrendingResource(
+                        id=resource["id"],
+                        name=resource["name"],
+                        description=resource["description"],
+                        author=resource["author"],
+                        downloads=resource["downloads"],
+                        resource_type=resource_type,
+                        platforms=resource["platforms"],
+                        growth_data=growth_data,
+                        created_at=datetime.fromisoformat(resource["created_at"]),
+                        updated_at=updated_at,
+                        highlight_reasons=reasons
+                    )
+                )
+        
+        # 按評分排序
+        trending.sort(key=lambda x: x.growth_data.growth_rate, reverse=True)
+        return trending[:10]
     
     def _load_latest_data(self) -> Dict[str, Any]:
         """Load the latest aggregated data"""
@@ -66,65 +196,6 @@ class WeeklyInsightsGenerator:
         except Exception as e:
             self.logger.error("failed_to_load_data", error=str(e))
             raise
-    
-    def _find_rising_stars(self, data: Dict[str, Any], days: int = 7) -> List[TrendingResource]:
-        """Find resources with significant growth in the past week
-        
-        Args:
-            data: Aggregated data
-            days: Number of days to analyze
-        
-        Returns:
-            List of trending resources
-        """
-        trending = []
-        resources = data.get("resources", {}).get("resources", {})
-        
-        # 使用帶時區的當前時間
-        now = datetime.now(self.timezone)
-        recent_date = now - timedelta(days=days)
-        
-        for resource_type, type_data in resources.items():
-            all_resources = type_data.get("all", [])
-            
-            for resource in all_resources:
-                # 確保時間字串包含時區資訊
-                created_at = datetime.fromisoformat(resource["created_at"]).replace(tzinfo=self.timezone)
-                updated_at = datetime.fromisoformat(resource["updated_at"]).replace(tzinfo=self.timezone)
-                
-                if created_at >= recent_date:
-                    trending.append(
-                        TrendingResource(
-                            id=resource["id"],
-                            name=resource["name"],
-                            description=resource["description"],
-                            author=resource["author"],
-                            downloads=resource["downloads"],
-                            resource_type=resource_type,
-                            platform=resource["platform"],
-                            website_url=resource["website_url"],
-                            growth_rate=self._calculate_growth_rate(resource),
-                            created_at=created_at,
-                            updated_at=updated_at
-                        )
-                    )
-        
-        # 按成長率排序
-        trending.sort(key=lambda x: x.growth_rate, reverse=True)
-        return trending[:10]  # 返回前 10 名
-    
-    def _calculate_growth_rate(self, resource: Dict[str, Any]) -> float:
-        """Calculate resource growth rate
-        
-        Args:
-            resource: Resource data
-            
-        Returns:
-            Growth rate
-        """
-        # 這裡需要實作成長率計算邏輯
-        # 可能需要歷史資料來計算實際成長率
-        return float(resource["downloads"])
     
     def _analyze_version_trends(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze version adoption trends

@@ -8,6 +8,16 @@ from typing import Dict, Any, Optional, List
 import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape, PackageLoader
 from .resource_matcher import ResourceMatcher
+import random
+from dataclasses import dataclass
+
+@dataclass
+class ResourceGrowthData:
+    """資源成長數據"""
+    current_week_downloads: int
+    last_week_downloads: int
+    growth_rate: float
+    daily_stats: list[int]
 
 logger = structlog.get_logger(__name__)
 
@@ -22,6 +32,12 @@ def resource_type_name(value: str) -> str:
         "pluginpack": "插件包"
     }
     return type_names.get(value, value)
+
+def format_growth_rate(value: float) -> str:
+    """Format growth rate as percentage with sign"""
+    if value > 0:
+        return f"+{value:.1f}%"
+    return f"{value:.1f}%"
 
 class WeeklyInsightsGenerator:
     """Weekly insights generator service"""
@@ -43,6 +59,7 @@ class WeeklyInsightsGenerator:
         # 註冊過濾器
         self.jinja_env.filters["resource_type_name"] = resource_type_name
         self.jinja_env.filters["format_number"] = lambda n: "{:,}".format(n)
+        self.jinja_env.filters["format_growth_rate"] = format_growth_rate
         
         self.logger = structlog.get_logger()
     
@@ -131,45 +148,57 @@ class WeeklyInsightsGenerator:
         
         for resource in data:
             try:
+                # 計算成長數據
+                growth_data = self._get_resource_growth_data(resource)
+                
                 # 計算資源分數
                 score = 0
+                reasons = []
                 
                 # 1. 更新時間權重 (最近一週內更新的資源加分)
                 updated_at = datetime.strptime(resource.get("updated_at", ""), "%Y-%m-%d %H:%M:%S")
                 days_since_update = (now - updated_at).days
                 if days_since_update <= 7:
                     score += (7 - days_since_update) * 10  # 越近期更新分數越高
+                    reasons.append(f"最近 {days_since_update} 天內更新")
                 
-                # 2. 下載趨勢權重 (一週內的下載增長)
-                weekly_downloads = resource.get("weekly_downloads", 0)
-                total_downloads = resource.get("downloads", 0)
-                if total_downloads > 0:
-                    weekly_growth_rate = weekly_downloads / total_downloads
-                    score += weekly_growth_rate * 100  # 轉換為百分比後加入分數
+                # 2. 下載趨勢權重
+                if growth_data.growth_rate > 50:
+                    score += 30
+                    reasons.append(f"下載成長 {growth_data.growth_rate:.1f}%")
                 
                 # 3. 版本支援權重 (支援最新版本的資源加分)
                 supported_versions = resource.get("versions", [])
                 if "1.20.4" in supported_versions:  # 支援最新版本
                     score += 30
+                    reasons.append("支援最新版本")
                 elif "1.20" in supported_versions:  # 支援主要版本
                     score += 20
                 
                 # 4. 社群參與度權重
-                if resource.get("is_featured", False):  # 被平台推薦
-                    score += 50
+                platforms = resource.get("platforms", [])
+                if len(platforms) > 1:
+                    score += 20
+                    reasons.append(f"在 {len(platforms)} 個平台發布")
                 
                 # 建立候選資源
                 candidates.append({
+                    "id": resource.get("id", ""),
                     "name": resource.get("name", ""),
                     "description": resource.get("description", ""),
                     "author": resource.get("author", ""),
                     "downloads": resource.get("downloads", 0),
-                    "weekly_downloads": weekly_downloads,
-                    "platforms": resource.get("platforms", []),
-                    "score": score,
+                    "platforms": platforms,
+                    "growth_data": {
+                        "current_week_downloads": growth_data.current_week_downloads,
+                        "last_week_downloads": growth_data.last_week_downloads,
+                        "growth_rate": growth_data.growth_rate,
+                        "daily_stats": growth_data.daily_stats
+                    },
                     "type": resource.get("type", ""),
                     "versions": supported_versions,
-                    "updated_at": resource.get("updated_at", "")
+                    "updated_at": resource.get("updated_at", ""),
+                    "highlight_reasons": reasons
                 })
                 
             except Exception as e:
@@ -178,23 +207,9 @@ class WeeklyInsightsGenerator:
                                   error=str(e))
                 continue
         
-        # 按分數排序並返回前 10 個
-        candidates.sort(key=lambda x: x["score"], reverse=True)
-        top_candidates = candidates[:10]
-        
-        # 記錄選擇原因
-        for candidate in top_candidates:
-            reasons = []
-            if candidate.get("weekly_downloads", 0) > 1000:
-                reasons.append(f"本週下載量達 {candidate['weekly_downloads']:,} 次")
-            if "1.20.4" in candidate.get("versions", []):
-                reasons.append("支援最新版本")
-            if len(candidate.get("platforms", [])) > 1:
-                reasons.append(f"在 {len(candidate['platforms'])} 個平台上架")
-            
-            candidate["highlight_reasons"] = reasons
-        
-        return top_candidates
+        # 按成長率排序
+        candidates.sort(key=lambda x: x["growth_data"]["growth_rate"], reverse=True)
+        return candidates[:10]
     
     def _analyze_version_trends(self, data: list) -> dict:
         """Analyze version trends"""
@@ -321,52 +336,73 @@ class WeeklyInsightsGenerator:
             self.logger.error("failed_to_create_symlinks", error=str(e))
             raise
             
-    def generate_weekly(self) -> None:
-        """Generate weekly report"""
+    def generate_weekly_report(self) -> None:
+        """生成週報"""
         try:
             # 載入資料
             data = self._load_data()
             
-            # 生成週報頁面
-            weekly_template = self.jinja_env.get_template("weekly_report.html.j2")
-            weekly_html = weekly_template.render(data=data)
+            # 確保輸出目錄存在
+            self.public_dir.mkdir(parents=True, exist_ok=True)
             
-            # 儲存週報頁面
-            weekly_path = self.public_dir / "index.html"
-            weekly_path.write_text(weekly_html)
-            self.logger.info("weekly_page_generated")
+            # 渲染模板
+            template = self.jinja_env.get_template("weekly_report.html.j2")
+            html = template.render(data=data)
             
-            # 生成搜尋頁面
-            search_template = self.jinja_env.get_template("search/search.html.j2")
-            search_html = search_template.render(data=data)
-            
-            # 儲存搜尋頁面
-            search_path = self.public_dir / "search.html"
-            search_path.write_text(search_html)
-            self.logger.info("search_page_generated")
+            # 寫入輸出檔案
+            output_file = self.public_dir / "index.html"
+            with output_file.open("w", encoding="utf-8") as f:
+                f.write(html)
             
             # 複製靜態檔案
-            self._copy_static_files()
-            self.logger.info("static_files_copied")
+            if self.static_dir.exists():
+                shutil.copytree(self.static_dir, self.public_dir / "static", dirs_exist_ok=True)
             
-            # 建立符號連結
-            self._create_symlinks()
-            
-            self.logger.info("generation_completed")
+            self.logger.info("weekly_report_generated", output_file=str(output_file))
             
         except Exception as e:
             self.logger.error("failed_to_generate_weekly", error=str(e))
             raise
-            
+    
     def clean(self) -> None:
         """Clean up generated files"""
         try:
-            # 移除 public 目錄
             if self.public_dir.exists():
                 shutil.rmtree(self.public_dir)
-            
-            self.logger.info("cleanup_completed")
-            
+            self.logger.info("cleaned_output_directory",
+                           directory=str(self.public_dir))
         except Exception as e:
-            self.logger.error("cleanup_failed", error=str(e))
-            raise 
+            self.logger.error("failed_to_clean",
+                            error=str(e))
+            raise
+
+    def _get_resource_growth_data(self, resource: dict) -> ResourceGrowthData:
+        """計算資源的成長數據"""
+        # 從歷史資料目錄讀取數據
+        history_dir = self.data_dir / "history"
+        
+        # 計算本週和上週的下載量
+        current_week_downloads = resource.get("current_week_downloads", 0)
+        last_week_downloads = resource.get("last_week_downloads", 0)
+        
+        # 計算成長率
+        growth_rate = 0
+        if last_week_downloads > 0:
+            growth_rate = ((current_week_downloads - last_week_downloads) / last_week_downloads) * 100
+            
+        # 從歷史資料讀取每日統計
+        daily_stats = resource.get("daily_stats", [0] * 14)  # 預設為 14 天的空數據
+            
+        return ResourceGrowthData(
+            current_week_downloads=current_week_downloads,
+            last_week_downloads=last_week_downloads,
+            growth_rate=growth_rate,
+            daily_stats=daily_stats
+        )
+
+    def _format_growth_rate(self, value: float) -> str:
+        """格式化成長率"""
+        if value > 0:
+            return f"+{value:.1f}%"
+        else:
+            return f"{value:.1f}%" 

@@ -1,105 +1,91 @@
 # ADR 0016: Frontend Table Design and Filtering Implementation
 
 ## Status
-Accepted
+Accepted (Updated 2025/02/15)
 
 ## Context
 We need an intuitive and feature-complete frontend interface to display Minecraft plugin/mod data collected from different platforms. Users need to be able to quickly browse, search, and filter this data to find content they're interested in. To quickly implement basic functionality, we chose to use Bootstrap to create a simple and practical interface.
 
 ## Decision
-We will implement the following frontend table design strategy:
+We will implement the following frontend design strategy:
 
 1. **Technology Stack**
    - Use Bootstrap 5 as the UI framework
-   - Use DataTables plugin for table functionality
+   - Use Jinja2 for server-side templating
    - Pure HTML + JavaScript implementation, no frontend framework dependency
 
-2. **Data Presentation**
+2. **Template Structure**
+   ```
+   templates/
+   ├── base.html.j2           # Base template with common layout
+   ├── weekly/
+   │   └── index.html.j2      # Weekly report template
+   └── components/            # Reusable components
+   ```
+
+3. **Base Template Design**
    ```html
    <!DOCTYPE html>
-   <html>
+   <html lang="zh-Hant-TW">
    <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>{% block title %}{% endblock %}</title>
      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+     <link href="/css/common.css" rel="stylesheet">
+     {% block extra_css %}{% endblock %}
    </head>
    <body>
-     <div class="container mt-4">
-       <div class="row mb-3">
-         <div class="col">
-           <input type="text" class="form-control" id="globalSearch" placeholder="Search...">
-         </div>
-       </div>
-       
-       <table id="modTable" class="table table-striped">
-         <thead>
-           <tr>
-             <th>Name</th>
-             <th>Version</th>
-             <th>Downloads</th>
-             <th>Updated At</th>
-             <th>Game Versions</th>
-             <th>Platform</th>
-           </tr>
-         </thead>
-         <tbody>
-           <!-- Dynamically generated rows -->
-         </tbody>
-       </table>
-     </div>
+     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+       <!-- Navigation content -->
+     </nav>
 
-     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+     <main class="container my-4">
+       {% block content %}{% endblock %}
+     </main>
+
+     <footer class="bg-light py-3 mt-5">
+       <!-- Footer content -->
+     </footer>
+
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+     {% block extra_js %}{% endblock %}
    </body>
    </html>
    ```
 
-3. **Filtering Functionality**
-   ```javascript
-   $(document).ready(function() {
-     $('#modTable').DataTable({
-       language: {
-         url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/zh-HANT.json'
-       },
-       pageLength: 25,
-       order: [[2, 'desc']], // Default sort by downloads
-       columns: [
-         { data: 'name' },
-         { data: 'version' },
-         { data: 'downloads', render: $.fn.dataTable.render.number(',', '.', 0) },
-         { data: 'updated_at' },
-         { data: 'game_versions' },
-         { data: 'platform' }
-       ]
-     });
-   });
-   ```
+4. **Data Presentation Features**
+   - 使用卡片式設計展示資源資訊
+   - 支援多種資料視圖（列表、網格）
+   - 提供分類和標籤過濾
+   - 實作響應式設計
+   - 支援多語言（預設繁體中文）
 
-4. **User Experience Optimization**
-   - Implement responsive design using Bootstrap
-   - Add pagination functionality
-   - Support basic column sorting
-   - Provide basic search filtering
+5. **User Experience Optimization**
+   - 實作響應式設計
+   - 提供直觀的導航系統
+   - 支援搜尋功能
+   - 優化載入速度
+   - 提供清晰的資料更新時間標示
 
 ## Consequences
 ### Positive
-- Quick implementation of basic functionality
-- Lower development complexity
-- No additional build tools required
-- Easy to maintain and modify
-- Responsive design works well on mobile devices
-- Familiar interface for users
+- 使用 Jinja2 模板系統提供更好的維護性
+- 支援伺服器端渲染，提升首次載入效能
+- 模組化設計便於擴展
+- 響應式設計支援各種裝置
+- 無需複雜的前端建置工具
 
 ### Negative
-- Limited to basic functionality
-- Harder to implement complex custom features
-- jQuery dependency
-- Performance may not match modern frontend frameworks
-- Limited offline capabilities
-- Potential scalability issues with large datasets
+- 較難實現複雜的動態功能
+- 伺服器端渲染可能增加伺服器負載
+- 需要額外管理模板檔案
+- 較難實現即時更新功能
 
 ## Related ADRs
 - [ADR 0015](./0015-data-aggregation-and-storage.md)
+- [ADR 0020](./0020-content-creator-insights.md)
+- [ADR 0022](./0022-insights-and-search-integration.md)
 
 ## Date
-02/01/2025
+2025/02/15

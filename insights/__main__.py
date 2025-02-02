@@ -57,7 +57,7 @@ def generate_weekly(base_dir: Path):
     """Generate weekly insights report"""
     try:
         generator = WeeklyInsightsGenerator(base_dir)
-        generator.generate_weekly()
+        generator.generate_weekly_report()
         logger.info("generation_completed")
         
     except Exception as e:
