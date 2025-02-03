@@ -22,6 +22,7 @@ from scraper.services.transformers.hangar import HangarTransformer
 from scraper.services.transformers.polymart import PolymartTransformer
 from scraper.services.storage.json_storage import JsonStorage
 from scraper.services.aggregator import ResourceAggregator
+from scraper.services.growth_tracker import GrowthTracker
 
 # Initialize structured logging
 logger = structlog.get_logger(__name__)
@@ -62,6 +63,7 @@ class ScraperService:
         self._register_clients()
         self._init_transformers()
         self._init_storage()
+        self._init_growth_tracker()
         
     def _register_clients(self) -> None:
         """Register platform-specific API clients"""
@@ -84,6 +86,13 @@ class ScraperService:
             self.aggregator = ResourceAggregator(storage=self.storage)
         except Exception as e:
             raise StorageError(f"Failed to initialize storage: {str(e)}")
+            
+    def _init_growth_tracker(self) -> None:
+        """Initialize growth tracker service"""
+        try:
+            self.growth_tracker = GrowthTracker(storage=self.storage)
+        except Exception as e:
+            raise StorageError(f"Failed to initialize growth tracker: {str(e)}")
         
     async def fetch_resources(self, platform: str) -> Dict:
         """
@@ -175,6 +184,13 @@ class ScraperService:
             # 儲存原始和處理後的資料
             await self.storage.save_raw_data(raw_results, timestamp)
             await self.storage.save_processed_data(processed_results, timestamp)
+            
+            # 追蹤資源成長
+            await self.growth_tracker.track_daily_stats(processed_results)
+            
+            # 如果是週日，產生週統計
+            if timestamp.weekday() == 6:
+                await self.growth_tracker.generate_weekly_stats()
             
             # 執行資料聚合
             aggregated_result = self.aggregator.aggregate(timestamp_str)

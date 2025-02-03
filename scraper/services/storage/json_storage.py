@@ -5,7 +5,7 @@ JSON file storage implementation
 import json
 import logging
 from typing import Dict, List, Any, Union
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .base import BaseStorage
@@ -171,4 +171,177 @@ class JsonStorage(BaseStorage):
         # Save aggregated data
         output_file = output_dir / "aggregated.json"
         with open(output_file, "w") as f:
-            json.dump(data, f, indent=2, default=str) 
+            json.dump(data, f, indent=2, default=str)
+    
+    async def save_daily_stats(self, stats: Dict[str, Any], date: datetime) -> None:
+        """
+        Save daily resource statistics
+        
+        Args:
+            stats: Daily resource statistics
+            date: Statistics date
+        """
+        try:
+            # 建立日期目錄結構
+            history_dir = self.base_dir / "data" / "history" / str(date.year) / f"{date.month:02d}"
+            history_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 儲存每日統計
+            daily_file = history_dir / f"{date.day:02d}.json"
+            with open(daily_file, "w", encoding="utf-8") as f:
+                json.dump(stats, f, indent=2, ensure_ascii=False)
+            
+            # 更新最新快照
+            latest_file = self.base_dir / "data" / "history" / "latest.json"
+            with open(latest_file, "w", encoding="utf-8") as f:
+                json.dump(stats, f, indent=2, ensure_ascii=False)
+                
+        except Exception as e:
+            logger.error("Failed to save daily stats: %s", str(e))
+            raise
+            
+    async def save_weekly_stats(self, stats: Dict[str, Any], date: datetime) -> None:
+        """
+        Save weekly resource statistics
+        
+        Args:
+            stats: Weekly resource statistics
+            date: Statistics date
+        """
+        try:
+            # 建立週統計目錄
+            week_number = date.isocalendar()[1]
+            weekly_dir = self.base_dir / "data" / "history" / str(date.year) / "weekly"
+            weekly_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 儲存週統計
+            weekly_file = weekly_dir / f"{week_number:02d}.json"
+            with open(weekly_file, "w", encoding="utf-8") as f:
+                json.dump(stats, f, indent=2, ensure_ascii=False)
+                
+        except Exception as e:
+            logger.error("Failed to save weekly stats: %s", str(e))
+            raise
+            
+    def get_daily_stats(self, date: datetime) -> Dict[str, Any]:
+        """
+        Get daily resource statistics
+        
+        Args:
+            date: Statistics date
+            
+        Returns:
+            Daily resource statistics
+        """
+        try:
+            daily_file = (self.base_dir / "data" / "history" / 
+                         str(date.year) / f"{date.month:02d}" / f"{date.day:02d}.json")
+            
+            if not daily_file.exists():
+                return {}
+                
+            with open(daily_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+                
+        except Exception as e:
+            logger.error("Failed to get daily stats: %s", str(e))
+            return {}
+            
+    def get_weekly_stats(self, date: datetime) -> Dict[str, Any]:
+        """
+        Get weekly resource statistics
+        
+        Args:
+            date: Any date in the target week
+            
+        Returns:
+            Weekly resource statistics
+        """
+        try:
+            week_number = date.isocalendar()[1]
+            weekly_file = (self.base_dir / "data" / "history" / 
+                          str(date.year) / "weekly" / f"{week_number:02d}.json")
+            
+            if not weekly_file.exists():
+                return {}
+                
+            with open(weekly_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+                
+        except Exception as e:
+            logger.error("Failed to get weekly stats: %s", str(e))
+            return {}
+            
+    def cleanup_old_data(self, months: int = 3) -> None:
+        """
+        Clean up old history data
+        
+        Args:
+            months: Number of months to keep
+        """
+        try:
+            cutoff_date = datetime.now() - timedelta(days=months * 30)
+            history_dir = self.base_dir / "data" / "history"
+            
+            if not history_dir.exists():
+                return
+                
+            for year_dir in history_dir.iterdir():
+                if not year_dir.is_dir() or year_dir.name == "latest":
+                    continue
+                    
+                year = int(year_dir.name)
+                for month_dir in year_dir.iterdir():
+                    if not month_dir.is_dir() or month_dir.name == "weekly":
+                        continue
+                        
+                    month = int(month_dir.name)
+                    dir_date = datetime(year, month, 1)
+                    
+                    if dir_date < cutoff_date:
+                        logger.info("Cleaning up old data: %s", month_dir)
+                        for file in month_dir.iterdir():
+                            file.unlink()
+                        month_dir.rmdir()
+                        
+                if not any(year_dir.iterdir()):
+                    year_dir.rmdir()
+                    
+        except Exception as e:
+            logger.error("Failed to clean up old data: %s", str(e))
+            
+    def verify_data_integrity(self) -> bool:
+        """
+        Verify data integrity
+        
+        Returns:
+            True if data is valid, False otherwise
+        """
+        try:
+            history_dir = self.base_dir / "data" / "history"
+            latest_file = history_dir / "latest.json"
+            
+            # 檢查最新快照
+            if not latest_file.exists():
+                logger.error("Latest snapshot not found")
+                return False
+                
+            # 讀取並驗證最新快照
+            with open(latest_file, "r", encoding="utf-8") as f:
+                latest_data = json.load(f)
+                
+            if "resource_stats" not in latest_data:
+                logger.error("Invalid latest snapshot format")
+                return False
+                
+            # 驗證資源統計資料
+            for resource_id, stats in latest_data["resource_stats"].items():
+                if "daily_stats" not in stats or "metadata" not in stats:
+                    logger.error("Invalid resource stats format: %s", resource_id)
+                    return False
+                    
+            return True
+            
+        except Exception as e:
+            logger.error("Data integrity check failed: %s", str(e))
+            return False 
